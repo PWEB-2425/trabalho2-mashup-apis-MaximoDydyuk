@@ -11,7 +11,7 @@ const app = express();
 
 // Configuração do CORS
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: 'http://localhost:3000',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -20,15 +20,6 @@ app.use(cors({
 // Middlewares - Aumentar o limite para JSON
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Conexão com MongoDB (opções simplificadas)
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log(' Conectado ao MongoDB'))
-  .catch(err => {
-    console.error(' Erro no MongoDB:', err.message);
-    console.error(' Verifique sua string de conexão MONGODB_URI no arquivo .env');
-    process.exit(1); // Encerra o processo em caso de erro crítico
-  });
 
 // Configuração de sessão
 app.use(session({
@@ -73,6 +64,7 @@ app.use('/api', apiRoutes);
 // Servir arquivos estáticos (se necessário)
 app.use(express.static(path.join(__dirname, 'public')));
 
+
 // Rota de status
 app.get('/status', (req, res) => {
   res.json({ 
@@ -82,6 +74,10 @@ app.get('/status', (req, res) => {
     timestamp: new Date().toISOString(),
     database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
   });
+});
+
+app.get('/', (req, res) => {
+  res.redirect('/status'); // Ou servir o frontend
 });
 
 // Middleware para tratamento de erros 404
@@ -114,32 +110,42 @@ app.use((err, req, res, next) => {
   res.status(errorResponse.error.status).json(errorResponse);
 });
 
-// Iniciar servidor
-const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => {
-  console.log(`\n Servidor rodando na porta ${PORT}`);
-  console.log(` Ambiente: ${process.env.NODE_ENV || 'development'}`);
-  console.log(` URL: http://localhost:${PORT}`);
-  console.log(` Database: ${mongoose.connection.readyState === 1 ? ' Conectado' : ' Desconectado'}`);
-});
-
-// Gerenciamento de encerramento
-process.on('SIGINT', () => {
-  console.log('\n Recebido SIGINT. Encerrando servidor...');
-  server.close(() => {
-    mongoose.connection.close(false, () => {
-      console.log(' Conexões encerradas');
-      process.exit(0);
+// Iniciar servidor APÓS conectar ao MongoDB
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => {
+    console.log(' Conectado ao MongoDB');
+    
+    const PORT = process.env.PORT || 5000;
+    const server = app.listen(PORT, () => {
+      console.log(`\n Servidor rodando na porta ${PORT}`);
+      console.log(` Ambiente: ${process.env.NODE_ENV || 'development'}`);
+      console.log(` URL: http://localhost:${PORT}`);
+      console.log(` Database: ${mongoose.connection.readyState === 1 ? 'Conectado' : 'Desconectado'}`);
     });
-  });
-});
 
-process.on('SIGTERM', () => {
-  console.log('\n Recebido SIGTERM. Encerrando servidor...');
-  server.close(() => {
-    mongoose.connection.close(false, () => {
-      console.log(' Conexões encerradas');
-      process.exit(0);
+    // Gerenciamento de encerramento
+    process.on('SIGINT', () => {
+      console.log('\n Recebido SIGINT. Encerrando servidor...');
+      server.close(() => {
+        mongoose.connection.close(false, () => {
+          console.log(' Conexões encerradas');
+          process.exit(0);
+        });
+      });
     });
+
+    process.on('SIGTERM', () => {
+      console.log('\n Recebido SIGTERM. Encerrando servidor...');
+      server.close(() => {
+        mongoose.connection.close(false, () => {
+          console.log(' Conexões encerradas');
+          process.exit(0);
+        });
+      });
+    });
+  })
+  .catch(err => {
+    console.error(' Erro no MongoDB:', err.message);
+    console.error(' Verifique sua string de conexão MONGODB_URI no arquivo .env');
+    process.exit(1);
   });
-});
