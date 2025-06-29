@@ -35,4 +35,80 @@ Visualização cronológica das pesquisas
 Detalhes específicos por tipo de pesquisa
 Opção para limpar todo o histórico
 
+Estrutura do Projeto
+text
+backend/
+├── config/
+│   └── passport-config.js   # Configuração de autenticação
+├── models/
+│   └── User.js              # Modelo do MongoDB
+├── routes/
+│   ├── authRoutes.js        # Rotas de autenticação
+│   └── apiRoutes.js         # Rotas de API (pesquisas/histórico)
+├── services/
+│   └── apiService.js        # Integração com APIs externas
+├── .env                     # Variáveis de ambiente
+└── server.js                # Ponto de entrada do servidor
 
+frontend/
+├── index.html               # Página inicial (login/registo)
+├── app.js                   # Lógica da aplicação
+└── style.css                # Estilos principais
+
+Instalação Local
+Pré-requisitos
+Node.js (v18 ou superior)
+MongoDB (local ou Atlas)
+Contas nas APIs:
+OpenWeatherMap
+Pixabay
+
+Instalação
+Passo a Passo
+Clonar o repositório
+git clone https://github.com/seu-usuario/api-mashup.git
+cd api-mashup
+
+Instalar dependências do backend
+cd backend
+npm install
+
+Configurar variáveis de ambiente
+Criar arquivo .env na pasta backend:
+env
+MONGODB_URI=mongodb://localhost:27017/mashupdb
+SESSION_SECRET=sua_chave_secreta_forte
+OPENWEATHER_API_KEY=sua_chave_openweathermap
+PIXABAY_API_KEY=sua_chave_pixabay
+FRONTEND_URL=http://localhost:3000
+
+Iniciar servidor backend
+Para desenvolvimento com reinício automático:
+npm run dev 
+aceder a: http://localhost:3000
+
+
+Descrição da Base de Dados
+Modelo de Usuário (User)
+javascript
+{
+  username: String,       // Nome de usuário único
+  password: String,       // Senha criptografada
+  searches: [             // Array de pesquisas
+    {
+      term: String,       // Termo pesquisado
+      type: String,       // 'city' ou 'image'
+      date: Date,         // Data da pesquisa
+      // Dados específicos para cidade:
+      weather: {
+        temp:
+
+Como Usar
+Faz registo com nome de utilizador e password.
+Faz login na plataforma.
+Pesquisa por uma cidade, onde aparece informações sobre essa cidade
+Vê o clima atual, o pais e a bandeira.
+Tambem da para pesquisar imagens caso queiras.
+Consulta o teu histórico de pesquisas.
+Se quiseres podes apagar o historico.
+Faz logout quando quiseres.
