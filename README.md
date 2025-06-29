@@ -1,191 +1,112 @@
-Imagens e Informação de cidades — Mashup de APIs 
+Autor
 
-Trabalho #2 — Programação Web
+Nome: Máximo Dydyuk
 
-Autor:
-
-Maximo Dydyuk (31818)
-
-Descrição:
-
-Aplicação web que integra dados de múltiplas APIs públicas para fornecer informações sobre cidades e imagens.
-
-Oferece:
-
-Sistema de autenticação seguro (registo, login e logout);
-
-Pesquisa de informações sobre cidades (dados meteorológicos + informações do país);
-
-Pesquisa de imagens;
-
-Histórico persistente de todas as pesquisas;
-
-Interface moderna e responsiva;
-
-Funcionalidades:
-
-Autenticação segura;
-
-Registo com validação de username único;
-
-Login com sessões persistentes;
-
-Senhas criptografadas com bcrypt;
-
-Proteção de rotas para utilizadores autenticados
-
-Pesquisa de Cidades
-
-Dados meteorológicos em tempo real (OpenWeatherMap);
-
-Informações detalhadas do país (RestCountries);
-
-Visualização da bandeira do país
-
-Pesquisa de Imagens
-
-Banco de imagens com milhões de fotos (Pixabay);
-
-Exibição em grid responsiva;
-
-Tags descritivas para cada imagem
-
-Histórico de Pesquisas
-
-Armazenamento permanente no MongoDB;
-
-Visualização cronológica das pesquisas;
-
-Detalhes específicos por tipo de pesquisa;
-
-Opção para limpar todo o histórico
-
-Estrutura do Projeto
-
-text
-
-backend/
-
-├── config/
-
-│   └── passport-config.js   # Configuração de autenticação
-
-├── models/
-
-│   └── User.js              # Modelo do MongoDB
-
-├── routes/
-
-│   ├── authRoutes.js        # Rotas de autenticação
-
-│   └── apiRoutes.js         # Rotas de API (pesquisas/histórico)
-
-├── services/
-
-│   └── apiService.js        # Integração com APIs externas
-
-├── .env                     # Variáveis de ambiente
-
-└── server.js                # Ponto de entrada do servidor
+Número: 31818 
 
 
-frontend/
+Descrição do trabalho
 
-├── index.html               # Página inicial (login/registo)
+Aplicação web que combina informações sobre cidades com imagens, através de um mashup de APIs públicas. Permite ao utilizador registar-se, autenticar-se, efetuar pesquisas e consultar o histórico das mesmas 
 
-├── app.js                   # Lógica da aplicação
 
-└── style.css                # Estilos principais
+O que faz e como funciona
 
-Instalação Local
+Funcionalidades principais:
 
-Pré-requisitos
+Autenticação
 
-Node.js (v18 ou superior)
+Registo e login com validação de username único.
+
+Passwords hashadas via bcrypt.
+
+Sessões persistentes e rotas protegidas para utilizadores autenticados 
+
+Pesquisa de cidades
+
+Consulta tempo real com a OpenWeatherMap.
+
+Informações do país e bandeira via RestCountries 
+
+Pesquisa de imagens
+
+Integra com Pixabay para obter imagens relacionadas às cidades 
+
+
+Histórico persistente
+
+Armazena todas as pesquisas (cidade ou imagem) no MongoDB, associado ao utilizador.
+
+Visualiza em ordem cronológica, com opção de apagar histórico 
+
+Frontend moderno e responsivo
+
+Layout clean via HTML/CSS/JS.
+
+Localização do projeto: https://trabalho2-mashup-apis-maximodydyuk-r1fm.onrender.com
+
+ Instalação e execução
+Pré‑requisitos
+
+Node.js v18+
 
 MongoDB (local ou Atlas)
 
-Contas nas APIs:
+Chaves nas APIs: OpenWeatherMap, Pixabay 
 
-OpenWeatherMap
+Passos
 
-Pixabay
+Clone o repositório:
 
-Instalação
+git clone https://github.com/PWEB-2425/trabalho2-mashup-apis-MaximoDydyuk.git
 
-Passo a Passo
+cd trabalho2-mashup-apis-MaximoDydyuk
 
-Clonar o repositório
+Instale dependências:
 
-git clone https://github.com/seu-usuario/api-mashup.git
+cd backend
+npm install
 
-cd api-mashup
+cd ../frontend
 
-Instalar dependências do backend
+npm install   # se existirem dependências no frontend
+
+Configure o .env na pasta backend/ com:
+
+
+MONGODB_URI=<uri_mongo>
+
+SESSION_SECRET=<chave_secreta>
+
+OPENWEATHER_API_KEY=<sua_api_key>
+
+PIXABAY_API_KEY=<sua_api_key>
+
+FRONTEND_URL=http://localhost:3000   # ou porta que usar
+
+Inicie o servidor:
 
 cd backend
 
-npm install
+npm run dev   # ou npm start se configurado
 
-Configurar variáveis de ambiente
-
-Criar arquivo .env na pasta backend:
-
-env
-
-MONGODB_URI=mongodb://localhost:27017/mashupdb
-
-SESSION_SECRET=sua_chave_secreta_forte
-
-OPENWEATHER_API_KEY=sua_chave_openweathermap
-
-PIXABAY_API_KEY=sua_chave_pixabay
-
-FRONTEND_URL=http://localhost:3000
-
-Iniciar servidor backend
-
-Para desenvolvimento com reinício automático:
-
-npm run dev 
-
-aceder a: http://localhost:3000
+Aceda à aplicação via navegador em http://localhost:3000 
 
 
-Descrição da Base de Dados
 
-Modelo de Usuário (User)
+Estrutura da base de dados
+Utiliza MongoDB.
 
-javascript
+Modelo User: contém username (único), password (hash), e um array de searches, cada uma com:
 
-{
-  username: String,       // Nome de usuário único
-  
-  password: String,       // Senha criptografada
-  
-  searches: [             // Array de pesquisas
-    {
-      term: String,       // Termo pesquisad
-      type: String,       // 'city' ou 'image'
-      date: Date,         // Data da pesquisa
-      // Dados específicos para cidade:
-      weather: {
-        temp:
+term, type ('city' ou 'image'), date, e dados específicos (ex. weather) 
 
-Como Usar
 
-Faz registo com nome de utilizador e password.
+Autenticação
+Implementada via Passport-local com sessões Express.
 
-Faz login na plataforma.
+Rotas de registo (/auth/register), login (/auth/login) e logout.
 
-Pesquisa por uma cidade, onde aparece informações sobre essa cidade
+Senhas encriptadas (bcrypt) e validação de duplicados.
 
-Vê o clima atual, o pais e a bandeira.
-
-Tambem da para pesquisar imagens caso queiras.
-
-Consulta o teu histórico de pesquisas.
-
-Se quiseres podes apagar o historico.
-
-Faz logout quando quiseres.
+Rotas de API/search exigem sessão ativa, garantindo segurança dos dados 
