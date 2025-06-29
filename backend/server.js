@@ -143,38 +143,3 @@ process.on('SIGTERM', () => {
     });
   });
 });
-
-const path = require('path');
-
-// Servir frontend estático em produção
-if (process.env.NODE_ENV === 'production') {
-  const frontendPath = path.join(__dirname, '../frontend');
-  
-  // Servir arquivos estáticos
-  app.use(express.static(frontendPath));
-  
-  // Rota para todas as requisições não tratadas
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(frontendPath, 'index.html'));
-  });
-}
-
-const path = require('path');
-
-// =====================================
-// SERVE FRONTEND EM PRODUÇÃO
-// =====================================
-if (process.env.NODE_ENV === 'production') {
-  // 1. Define o caminho para o frontend
-  const frontendPath = path.join(__dirname, '../frontend');
-  
-  // 2. Serve os arquivos estáticos
-  app.use(express.static(frontendPath));
-  
-  // 3. Todas as rotas não API servem o frontend
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(frontendPath, 'index.html'));
-  });
-  
-  console.log('Frontend sendo servido pelo backend em modo produção');
-}
