@@ -1,6 +1,8 @@
-const API_BASE_URL = 'http://localhost:5000/api';
-const appContainer = document.getElementById('app');
-
+// Configuração inteligente de URL
+const API_BASE_URL = window.location.hostname.includes('render.com')
+  ? window.location.origin + '/api' 
+  : 'http://localhost:5000/api';
+  
 // Estado da aplicação
 let currentUser = null;
 
@@ -463,3 +465,4 @@ function showError(message) {
     alert(message);
   }
 }
+
