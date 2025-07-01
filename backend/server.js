@@ -12,7 +12,8 @@ const app = express();
 // Configuração do CORS
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://trab2maximodydyuk.vercel.app'
+  'https://trab2maximodydyuk.vercel.app',
+  'https://trabalho2-mashup-apis-maximodydyuk-7wtj.onrender.com'
 ];
 
 app.use(cors({
