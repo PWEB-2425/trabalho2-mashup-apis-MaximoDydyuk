@@ -77,7 +77,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api', apiRoutes);
 
 // Servir arquivos estáticos (se necessário)
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'frontend')));
 
 
 // Rota de status
