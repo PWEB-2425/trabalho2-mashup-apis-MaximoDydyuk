@@ -12,7 +12,6 @@ const app = express();
 // Configuração do CORS
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://trab2maximodydyuk.vercel.app',
   'https://trabalho2-mashup-apis-maximodydyuk-r1fm.onrender.com'
 ];
 
@@ -32,6 +31,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
+app.options('*', cors()); // Habilitar pré-voo para todas as rotas
 
 // Middlewares - Aumentar o limite para JSON
 app.use(express.json({ limit: '10mb' }));
@@ -79,8 +79,6 @@ app.use('/api', apiRoutes);
 
 // Servir arquivos estáticos (se necessário)
 app.use(express.static(path.join(__dirname, 'public')));
-
-app.options('*', cors()); // Habilitar pré-voo para todas as rotas
 
 // Rota de status
 app.get('/status', (req, res) => {
