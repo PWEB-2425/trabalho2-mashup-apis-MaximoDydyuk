@@ -12,7 +12,6 @@ const app = express();
 // Configuração do CORS
 app.use(cors({
   origin: 'http://localhost:3000',
-  'https://trab2maximodydyuk.vercel.app',
   'https://trabalho2-mashup-apis-maximodydyuk-r1fm.onrender.com'
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
