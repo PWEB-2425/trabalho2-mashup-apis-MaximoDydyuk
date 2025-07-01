@@ -2,30 +2,48 @@ const API_BASE_URL = 'https://trabalho2-mashup-apis-maximodydyuk-7wtj.onrender.c
 const appContainer = document.getElementById('app');
 let currentUser = null;
 
+// Corrige política de cookies (para browsers modernos)
+function fixCookiePolicies() {
+  if (typeof document !== 'undefined') {
+    // Isto só força o browser a tentar atualizar cookies locais, mas normalmente não é necessário
+    // O importante é credentials: 'include' e o backend correto
+    // Este comando é seguro, mas normalmente não é obrigatório
+    document.cookie = "testcookie=1; SameSite=None; Secure";
+    console.log('[DEBUG] fixCookiePolicies chamada');
+  }
+}
+
 // Inicializar aplicação
 init();
 
 async function init() {
+  fixCookiePolicies();
   await checkSession();
 }
 
-// Verificar sessão
+// Verificar sessão com debug
 async function checkSession() {
+  console.log('[DEBUG] Iniciando verificação de sessão...');
   try {
     const response = await fetch(`${API_BASE_URL}/auth/check-session`, {
       credentials: 'include'
     });
 
+    console.log(`[DEBUG] /auth/check-session status: ${response.status}`);
+    console.log(`[DEBUG] /auth/check-session headers:`, [...response.headers.entries()]);
+
     if (response.status === 401) {
+      console.log('[DEBUG] Sessão inválida (401)');
       showLogin();
       return;
     }
 
     if (!response.ok) {
-      throw new Error('Sessão inválida');
+      throw new Error(`Sessão inválida (status: ${response.status})`);
     }
 
     const data = await response.json();
+    console.log('[DEBUG] Resposta do check-session:', data);
 
     if (data.authenticated) {
       currentUser = data.user;
@@ -34,13 +52,14 @@ async function checkSession() {
       showLogin();
     }
   } catch (error) {
-    console.error('Erro ao verificar sessão:', error);
+    console.error('[DEBUG] Erro ao verificar sessão:', error);
     showLogin();
   }
 }
 
 // Mostrar tela de login
 function showLogin() {
+  console.log('[DEBUG] Mostrando tela de login');
   appContainer.innerHTML = `
     <div class="auth-container">
       <h2 class="text-center mb-4">Login</h2>
@@ -68,6 +87,7 @@ function showLogin() {
 
 // Mostrar tela de registro
 function showRegister() {
+  console.log('[DEBUG] Mostrando tela de registro');
   appContainer.innerHTML = `
     <div class="auth-container">
       <h2 class="text-center mb-4">Registro</h2>
@@ -95,6 +115,7 @@ function showRegister() {
 
 // Mostrar dashboard
 function showDashboard() {
+  console.log('[DEBUG] Mostrando dashboard para:', currentUser.username);
   appContainer.innerHTML = `
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
       <div class="container">
@@ -157,7 +178,7 @@ function showDashboard() {
     e.preventDefault();
     showHistory();
   });
-  
+
   document.getElementById('cityInput').value = '';
   document.getElementById('imageInput').value = '';
   document.getElementById('cityResults').innerHTML = '';
@@ -166,10 +187,13 @@ function showDashboard() {
 
 // Mostrar histórico
 async function showHistory() {
+  console.log('[DEBUG] Mostrando histórico');
   try {
     const response = await fetch(`${API_BASE_URL}/history`, {
       credentials: 'include'
     });
+
+    console.log(`[DEBUG] /history status: ${response.status}`);
 
     if (response.status === 401) {
       showLogin();
@@ -181,6 +205,7 @@ async function showHistory() {
     }
 
     const searches = await response.json();
+    console.log('[DEBUG] Dados do histórico:', searches);
 
     let historyHTML = `
       <div class="card">
@@ -200,7 +225,7 @@ async function showHistory() {
             </thead>
             <tbody>
     `;
-    
+
     searches.forEach(search => {
       let details = '';
       if (search.type === 'city') {
@@ -258,11 +283,14 @@ async function showHistory() {
 async function clearHistory() {
   if (!confirm('Tem certeza que deseja limpar todo o histórico?')) return;
 
+  console.log('[DEBUG] Limpando histórico...');
   try {
     const response = await fetch(`${API_BASE_URL}/history`, {
       method: 'DELETE',
       credentials: 'include'
     });
+
+    console.log(`[DEBUG] /history DELETE status: ${response.status}`);
 
     if (response.status === 401) {
       showLogin();
@@ -284,6 +312,7 @@ async function handleLogin(e) {
   e.preventDefault();
   const username = document.getElementById('username').value;
   const password = document.getElementById('password').value;
+  console.log('[DEBUG] Tentativa de login para:', username);
 
   try {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -292,6 +321,9 @@ async function handleLogin(e) {
       body: JSON.stringify({ username, password }),
       credentials: 'include'
     });
+
+    console.log(`[DEBUG] /auth/login status: ${response.status}`);
+    console.log('[DEBUG] /auth/login headers:', [...response.headers.entries()]);
 
     if (response.status === 401) {
       showError('Credenciais inválidas');
@@ -304,6 +336,7 @@ async function handleLogin(e) {
     }
 
     const data = await response.json();
+    console.log('[DEBUG] Resposta do login:', data);
 
     if (data.success) {
       currentUser = data.user;
@@ -321,6 +354,7 @@ async function handleRegister(e) {
   e.preventDefault();
   const username = document.getElementById('regUsername').value;
   const password = document.getElementById('regPassword').value;
+  console.log('[DEBUG] Tentativa de registro para:', username);
 
   try {
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
@@ -329,6 +363,8 @@ async function handleRegister(e) {
       body: JSON.stringify({ username, password }),
       credentials: 'include'
     });
+
+    console.log(`[DEBUG] /auth/register status: ${response.status}`);
 
     if (response.status === 401) {
       showError('Erro no registro');
@@ -341,6 +377,7 @@ async function handleRegister(e) {
     }
 
     const data = await response.json();
+    console.log('[DEBUG] Resposta do registro:', data);
 
     if (data.success) {
       currentUser = data.user;
@@ -355,12 +392,14 @@ async function handleRegister(e) {
 
 // Manipulador de logout
 async function handleLogout() {
+  console.log('[DEBUG] Iniciando logout...');
   try {
     await fetch(`${API_BASE_URL}/auth/logout`, {
       credentials: 'include'
     });
+    console.log('[DEBUG] Logout bem-sucedido');
   } catch (error) {
-    // mesmo que dê erro, força logout local
+    console.error('[DEBUG] Erro no logout:', error);
   } finally {
     currentUser = null;
     showLogin();
@@ -372,6 +411,7 @@ async function handleCitySearch(e) {
   e.preventDefault();
   const city = document.getElementById('cityInput').value;
   const resultsDiv = document.getElementById('cityResults');
+  console.log(`[DEBUG] Pesquisando cidade: ${city}`);
 
   resultsDiv.innerHTML = '<div class="text-center">Carregando... <div class="spinner-border"></div></div>';
 
@@ -379,6 +419,9 @@ async function handleCitySearch(e) {
     const response = await fetch(`${API_BASE_URL}/search/city?term=${encodeURIComponent(city)}`, {
       credentials: 'include'
     });
+
+    console.log(`[DEBUG] /search/city status: ${response.status}`);
+    console.log('[DEBUG] /search/city headers:', [...response.headers.entries()]);
 
     if (response.status === 401) {
       showLogin();
@@ -391,6 +434,7 @@ async function handleCitySearch(e) {
     }
 
     const data = await response.json();
+    console.log('[DEBUG] Dados da cidade:', data);
 
     resultsDiv.innerHTML = `
       <div class="card">
@@ -433,6 +477,7 @@ async function handleImageSearch(e) {
   e.preventDefault();
   const term = document.getElementById('imageInput').value;
   const resultsDiv = document.getElementById('imageResults');
+  console.log(`[DEBUG] Pesquisando imagem: ${term}`);
 
   resultsDiv.innerHTML = '<div class="text-center">Carregando... <div class="spinner-border"></div></div>';
 
@@ -440,6 +485,8 @@ async function handleImageSearch(e) {
     const response = await fetch(`${API_BASE_URL}/search/image?term=${encodeURIComponent(term)}`, {
       credentials: 'include'
     });
+
+    console.log(`[DEBUG] /search/image status: ${response.status}`);
 
     if (response.status === 401) {
       showLogin();
@@ -452,6 +499,7 @@ async function handleImageSearch(e) {
     }
 
     const images = await response.json();
+    console.log('[DEBUG] Dados da imagem:', images);
 
     let imagesHTML = '<div class="row g-3">';
     images.forEach(image => {
@@ -475,6 +523,7 @@ async function handleImageSearch(e) {
 
 // Mostrar erro
 function showError(message) {
+  console.error(`[DEBUG] Exibindo erro: ${message}`);
   const errorEl = document.getElementById('error');
   if (errorEl) {
     errorEl.textContent = message;
