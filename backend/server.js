@@ -9,58 +9,43 @@ const path = require('path');
 
 const app = express();
 
-// 1. Configuração do CORS corrigida
+// Configuração do CORS
+Add commentMore actions
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://trabalho2-mashup-apis-maximodydyuk-r1fm.onrender.com',
   'https://trab2maximodydyuk.vercel.app'
 ];
 
-app.use(cors({
+app.use(cors({Add commentMore actions
   origin: function (origin, callback) {
+    // Permitir solicitações sem 'origin'
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      console.error(`Origem bloqueada: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
+      callback(new Error('Origem não permitida por CORS'), false);
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 
-app.options('*', cors());
-
-// 2. Middleware para sanitizar URLs
-app.use((req, res, next) => {
-  // Sanitiza URLs malformadas
-  const cleanPath = req.path.replace(/[^a-zA-Z0-9\/\-_\.\?=&]/g, '');
-  
-  if (req.path !== cleanPath) {
-    console.warn(`URL sanitizada: ${req.path} -> ${cleanPath}`);
-    req.url = req.url.replace(req.path, cleanPath);
-  }
-  
-  next();
-});
-
-// Middlewares
+// Middlewares - Aumentar o limite para JSON
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// 3. Configuração de sessão corrigida
+// Configuração de sessão
 app.use(session({
   secret: process.env.SESSION_SECRET || 'secret_key_aleatoria',
   resave: false,
   saveUninitialized: false,
   store: MongoStore.create({ 
     mongoUrl: process.env.MONGODB_URI,
-    ttl: 24 * 60 * 60
+    ttl: 24 * 60 * 60 // 1 dia
   }),
   cookie: {
-    maxAge: 24 * 60 * 60 * 1000,
+    maxAge: 24 * 60 * 60 * 1000, // 1 dia
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
@@ -72,9 +57,15 @@ require('./config/passport-config');
 app.use(passport.initialize());
 app.use(passport.session());
 
-// 4. Middleware de logs aprimorado
+// Middleware para logs de requisição
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} | ${req.method} ${req.originalUrl} | Origin: ${req.headers.origin}`);
+  console.log(`${new Date().toISOString()} | ${req.method} ${req.originalUrl}`);
+  next();
+});
+
+// Middleware para definir headers de conteúdo
+app.use((req, res, next) => {
+  res.header('Content-Type', 'application/json; charset=utf-8');
   next();
 });
 
@@ -84,8 +75,9 @@ const apiRoutes = require('./routes/apiRoutes');
 app.use('/api/auth', authRoutes);
 app.use('/api', apiRoutes);
 
-// Servir arquivos estáticos
-app.use(express.static(path.join(__dirname, 'frontend')));
+// Servir arquivos estáticos (se necessário)
+app.use(express.static(path.join(__dirname, 'public')));
+
 
 // Rota de status
 app.get('/status', (req, res) => {
@@ -98,19 +90,8 @@ app.get('/status', (req, res) => {
   });
 });
 
-// 5. Rota principal corrigida
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
-});
-
-// 6. Rota de fallback SPA corrigida
-app.get('*', (req, res) => {
-  // Ignora solicitações para arquivos estáticos
-  if (req.path.includes('.') && !req.path.endsWith('/')) {
-    return res.status(404).json({ error: 'Arquivo não encontrado' });
-  }
-  
-  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
+  res.redirect('/status'); // Ou servir o frontend
 });
 
 // Middleware para tratamento de erros 404
@@ -122,18 +103,11 @@ app.use((req, res) => {
   });
 });
 
-// 7. Middleware global de tratamento de erros aprimorado
+// Middleware global de tratamento de erros
 app.use((err, req, res, next) => {
   console.error(' ERRO:', err.stack);
   
-  // Trata erros específicos do path-to-regexp
-  if (err.message.includes('Missing parameter name')) {
-    return res.status(400).json({
-      error: 'URL inválida',
-      message: 'A URL contém parâmetros malformados'
-    });
-  }
-  
+  // Formata resposta de erro
   const errorResponse = {
     error: {
       message: err.message || 'Erro interno no servidor',
@@ -142,6 +116,7 @@ app.use((err, req, res, next) => {
     }
   };
   
+  // Adiciona stack trace apenas em desenvolvimento
   if (process.env.NODE_ENV === 'development') {
     errorResponse.error.stack = err.stack;
   }
@@ -149,7 +124,7 @@ app.use((err, req, res, next) => {
   res.status(errorResponse.error.status).json(errorResponse);
 });
 
-// Iniciar servidor
+// Iniciar servidor APÓS conectar ao MongoDB
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
     console.log(' Conectado ao MongoDB');
@@ -158,24 +133,33 @@ mongoose.connect(process.env.MONGODB_URI)
     const server = app.listen(PORT, () => {
       console.log(`\n Servidor rodando na porta ${PORT}`);
       console.log(` Ambiente: ${process.env.NODE_ENV || 'development'}`);
-      console.log(` Origens permitidas: ${allowedOrigins.join(', ')}`);
+      console.log(` URL: http://localhost:${PORT}`);
+      console.log(` Database: ${mongoose.connection.readyState === 1 ? 'Conectado' : 'Desconectado'}`);
     });
 
     // Gerenciamento de encerramento
-    const shutdown = () => {
-      console.log('\n Encerrando servidor...');
+    process.on('SIGINT', () => {
+      console.log('\n Recebido SIGINT. Encerrando servidor...');
       server.close(() => {
         mongoose.connection.close(false, () => {
           console.log(' Conexões encerradas');
           process.exit(0);
         });
       });
-    };
+    });
 
-    process.on('SIGINT', shutdown);
-    process.on('SIGTERM', shutdown);
+    process.on('SIGTERM', () => {
+      console.log('\n Recebido SIGTERM. Encerrando servidor...');
+      server.close(() => {
+        mongoose.connection.close(false, () => {
+          console.log(' Conexões encerradas');
+          process.exit(0);
+        });
+      });
+    });
   })
   .catch(err => {
     console.error(' Erro no MongoDB:', err.message);
+    console.error(' Verifique sua string de conexão MONGODB_URI no arquivo .env');
     process.exit(1);
   });
