@@ -9,25 +9,25 @@ const path = require('path');
 
 const app = express();
 
-// 1. Trust proxy para produção (Vercel/Render/etc)
+// 1. Definir trust proxy para produção (obrigatório em Render/Vercel para cookies secure)
 app.set('trust proxy', 1);
 
-// 2. Origens permitidas para CORS
+// 2. Lista de origens permitidas para CORS
 const allowedOrigins = [
   'http://localhost:3000',
   'https://trab2maximodydyuk.vercel.app',
   'https://trabalho2-mashup-apis-maximodydyuk-7wtj.onrender.com'
 ];
 
-// 3. Middleware CORS
+// 3. Middleware de CORS
 app.use(cors({
   origin: function (origin, callback) {
-    // Permitir solicitações sem 'origin' (ex: curl, Postman)
+    // Permitir pedidos sem 'origin' (ex: curl, Postman)
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) {
-      callback(null, true);
+      return callback(null, true);
     } else {
-      callback(new Error('Origem não permitida por CORS'), false);
+      return callback(new Error('Origem não permitida pelo CORS'), false);
     }
   },
   credentials: true,
@@ -39,9 +39,9 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// 5. Sessão com MongoDB
+// 5. Configuração da sessão com MongoDB
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'secret_key_aleatoria',
+  secret: process.env.SESSION_SECRET || 'chave_secreta_aleatoria',
   resave: false,
   saveUninitialized: false,
   store: MongoStore.create({
@@ -62,7 +62,7 @@ require('./config/passport-config');
 app.use(passport.initialize());
 app.use(passport.session());
 
-// 7. Middleware de logs
+// 7. Middleware para logs de pedidos
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} | ${req.method} ${req.originalUrl}`);
   next();
@@ -80,7 +80,7 @@ const apiRoutes = require('./routes/apiRoutes');
 app.use('/api/auth', authRoutes);
 app.use('/api', apiRoutes);
 
-// 10. Servir arquivos estáticos (opcional)
+// 10. Servir ficheiros estáticos (opcional)
 app.use(express.static(path.join(__dirname, 'frontend')));
 
 // 11. Rota de status
@@ -88,9 +88,9 @@ app.get('/status', (req, res) => {
   res.json({
     status: 'online',
     app: 'API Mashup',
-    environment: process.env.NODE_ENV || 'development',
-    timestamp: new Date().toISOString(),
-    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+    ambiente: process.env.NODE_ENV || 'development',
+    data_hora: new Date().toISOString(),
+    base_de_dados: mongoose.connection.readyState === 1 ? 'ligada' : 'desligada'
   });
 });
 
@@ -99,65 +99,65 @@ app.get('/', (req, res) => {
   res.redirect('/status');
 });
 
-// 13. Middleware 404
+// 13. Middleware para erro 404
 app.use((req, res) => {
   res.status(404).json({
-    error: 'Rota não encontrada',
-    path: req.originalUrl,
-    method: req.method
+    erro: 'Rota não encontrada',
+    caminho: req.originalUrl,
+    método: req.method
   });
 });
 
 // 14. Middleware global de erros
 app.use((err, req, res, next) => {
   console.error('ERRO:', err.stack);
-  const errorResponse = {
-    error: {
-      message: err.message || 'Erro interno no servidor',
-      type: err.name || 'InternalServerError',
-      status: err.status || 500
+  const respostaErro = {
+    erro: {
+      mensagem: err.message || 'Erro interno no servidor',
+      tipo: err.name || 'ErroInternoServidor',
+      estado: err.status || 500
     }
   };
   if (process.env.NODE_ENV === 'development') {
-    errorResponse.error.stack = err.stack;
+    respostaErro.erro.stack = err.stack;
   }
-  res.status(errorResponse.error.status).json(errorResponse);
+  res.status(respostaErro.erro.estado).json(respostaErro);
 });
 
-// 15. Conexão ao MongoDB e inicialização do servidor
+// 15. Conexão ao MongoDB e arranque do servidor
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
-    console.log('Conectado ao MongoDB');
+    console.log('Ligação à base de dados MongoDB estabelecida com sucesso.');
     const PORT = process.env.PORT || 5000;
     const server = app.listen(PORT, () => {
-      console.log(`\nServidor rodando na porta ${PORT}`);
+      console.log(`\nServidor a correr na porta ${PORT}`);
       console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
       console.log(`URL: http://localhost:${PORT}`);
-      console.log(`Database: ${mongoose.connection.readyState === 1 ? 'Conectado' : 'Desconectado'}`);
+      console.log(`Base de dados: ${mongoose.connection.readyState === 1 ? 'Ligada' : 'Desligada'}`);
     });
 
-    // Fechamento gracioso
+    // Encerramento gracioso
     process.on('SIGINT', () => {
-      console.log('\nRecebido SIGINT. Encerrando servidor...');
+      console.log('\nRecebido sinal SIGINT. A encerrar o servidor...');
       server.close(() => {
         mongoose.connection.close(false, () => {
-          console.log('Conexões encerradas');
+          console.log('Todas as ligações foram encerradas.');
           process.exit(0);
         });
       });
     });
     process.on('SIGTERM', () => {
-      console.log('\nRecebido SIGTERM. Encerrando servidor...');
+      console.log('\nRecebido sinal SIGTERM. A encerrar o servidor...');
       server.close(() => {
         mongoose.connection.close(false, () => {
-          console.log('Conexões encerradas');
+          console.log('Todas as ligações foram encerradas.');
           process.exit(0);
         });
       });
     });
   })
   .catch(err => {
-    console.error('Erro no MongoDB:', err.message);
-    console.error('Verifique sua string de conexão MONGODB_URI no arquivo .env');
+    console.error('Erro ao ligar à base de dados MongoDB:', err.message);
+    console.error('Por favor, verifique a variável de ambiente MONGODB_URI no ficheiro .env');
     process.exit(1);
   });
