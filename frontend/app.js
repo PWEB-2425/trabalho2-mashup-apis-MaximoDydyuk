@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'https://trabalho2-mashup-apis-maximodydyuk-r1fm.onrender.com/api';
 const appContainer = document.getElementById('app');
 // Estado da aplicação
 let currentUser = null;
