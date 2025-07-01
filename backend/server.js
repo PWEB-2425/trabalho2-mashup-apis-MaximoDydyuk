@@ -9,9 +9,23 @@ const path = require('path');
 
 const app = express();
 
-// Configuração do CORS
+// CORS
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://trab2maximodydyuk.vercel.app'
+];
+
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: function (origin, callback) {
+    // Permitir solicitações sem 'origin'
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Origem não permitida por CORS'), false);
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
