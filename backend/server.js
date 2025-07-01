@@ -9,7 +9,7 @@ const path = require('path');
 
 const app = express();
 
-// 1. Definir trust proxy para produção (crítico para cookies em ambientes cloud)
+// 1. Trust proxy crítico para ambientes cloud
 app.set('trust proxy', 1);
 
 // 2. Lista de origens permitidas para CORS
@@ -19,19 +19,19 @@ const allowedOrigins = [
   'https://trabalho2-mashup-apis-maximodydyuk-7wtj.onrender.com'
 ];
 
-// 3. Middleware de CORS com debug
+// 3. Middleware de CORS com debug aprimorado
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) {
-      console.log('CORS: Request without origin allowed');
+      console.log('CORS: Pedido sem origem permitido (local/teste)');
       return callback(null, true);
     }
     
     if (allowedOrigins.includes(origin)) {
-      console.log(`CORS: Origin ${origin} allowed`);
+      console.log(`CORS: Origem permitida: ${origin}`);
       return callback(null, true);
     } else {
-      console.log(`CORS: Origin ${origin} not allowed`);
+      console.log(`CORS BLOCKED: ${origin} não está na lista permitida`);
       return callback(new Error('Origem não permitida pelo CORS'), false);
     }
   },
@@ -56,20 +56,19 @@ app.use(session({
   cookie: {
     maxAge: 24 * 60 * 60 * 1000, // 1 dia
     httpOnly: true,
-    secure: true, // FORÇADO para true em todos os ambientes
-    sameSite: 'none', // FORÇADO para none sempre
-    // NÃO definir domain!
+    secure: true, // SEMPRE true (HTTPS obrigatório)
+    sameSite: 'none', // SEMPRE none para cross-origin
   }
 }));
 
-// 6. Passport.js
-require('./config/passport-config');
+// 6. Passport.js (DEVE vir depois da sessão)
+require('./config/passport-config'); // <-- Verifica se este ficheiro está correto!
 app.use(passport.initialize());
 app.use(passport.session());
 
-// 7. Middleware para logs de pedidos
+// 7. Middleware de logs com informações de sessão
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} | ${req.method} ${req.originalUrl}`);
+  console.log(`${new Date().toISOString()} | ${req.method} ${req.originalUrl} | SessionID: ${req.sessionID} | Authenticated: ${req.isAuthenticated() ? 'Sim' : 'Não'}`);
   next();
 });
 
@@ -83,19 +82,20 @@ app.use((req, res, next) => {
 const authRoutes = require('./routes/authRoutes');
 const apiRoutes = require('./routes/apiRoutes');
 app.use('/api/auth', authRoutes);
-app.use('/api', apiRoutes);
+app.use('/api', apiRoutes); // <-- Garante que as rotas aqui usam autenticação!
 
 // 10. Servir ficheiros estáticos (opcional)
 app.use(express.static(path.join(__dirname, 'frontend')));
 
-// 11. Rota de status
+// 11. Rota de status (pública)
 app.get('/status', (req, res) => {
   res.json({
     status: 'online',
     app: 'API Mashup',
     ambiente: process.env.NODE_ENV || 'development',
     data_hora: new Date().toISOString(),
-    base_de_dados: mongoose.connection.readyState === 1 ? 'ligada' : 'desligada'
+    base_de_dados: mongoose.connection.readyState === 1 ? 'ligada' : 'desligada',
+    sessao: req.sessionID || 'nenhuma'
   });
 });
 
@@ -115,7 +115,7 @@ app.use((req, res) => {
 
 // 14. Middleware global de erros
 app.use((err, req, res, next) => {
-  console.error('ERRO:', err.stack);
+  console.error('ERRO GLOBAL:', err.stack);
   const respostaErro = {
     erro: {
       mensagem: err.message || 'Erro interno no servidor',
@@ -132,39 +132,33 @@ app.use((err, req, res, next) => {
 // 15. Conexão ao MongoDB e arranque do servidor
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
-    console.log('Ligação à base de dados MongoDB estabelecida com sucesso.');
+    console.log('✅ Ligação à base de dados MongoDB estabelecida com sucesso.');
     const PORT = process.env.PORT || 5000;
     const server = app.listen(PORT, () => {
-      console.log(`\nServidor a correr na porta ${PORT}`);
-      console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`URL: http://localhost:${PORT}`);
-      console.log(`Base de dados: ${mongoose.connection.readyState === 1 ? 'Ligada' : 'Desligada'}`);
-      console.log('Configuração de cookies:');
-      console.log(`  secure: true, sameSite: none`);
+      console.log(`\n🚀 Servidor a correr na porta ${PORT}`);
+      console.log(`🌐 Ambiente: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🔗 URL: http://localhost:${PORT}`);
+      console.log(`💾 Base de dados: ${mongoose.connection.readyState === 1 ? 'Ligada' : 'Desligada'}`);
+      console.log('🍪 Configuração de cookies:');
+      console.log('   secure: true, sameSite: none, httpOnly: true');
     });
 
     // Encerramento gracioso
-    process.on('SIGINT', () => {
-      console.log('\nRecebido sinal SIGINT. A encerrar o servidor...');
+    const shutdown = () => {
+      console.log('\n🛑 Recebido sinal de encerramento. A encerrar servidor...');
       server.close(() => {
         mongoose.connection.close(false, () => {
-          console.log('Todas as ligações foram encerradas.');
+          console.log('🔌 Todas as ligações foram encerradas.');
           process.exit(0);
         });
       });
-    });
-    process.on('SIGTERM', () => {
-      console.log('\nRecebido sinal SIGTERM. A encerrar o servidor...');
-      server.close(() => {
-        mongoose.connection.close(false, () => {
-          console.log('Todas as ligações foram encerradas.');
-          process.exit(0);
-        });
-      });
-    });
+    };
+
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
   })
   .catch(err => {
-    console.error('Erro ao ligar à base de dados MongoDB:', err.message);
-    console.error('Por favor, verifique a variável de ambiente MONGODB_URI no ficheiro .env');
+    console.error('❌ Erro ao ligar à base de dados MongoDB:', err.message);
+    console.error('ℹ️ Por favor, verifique a variável de ambiente MONGODB_URI no ficheiro .env');
     process.exit(1);
   });
