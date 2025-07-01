@@ -13,6 +13,7 @@ const app = express();
 const allowedOrigins = [
   'http://localhost:3000',
   'https://trab2maximodydyuk.vercel.app',
+  'https://trabalho2-mashup-apis-maximodydyuk-r1fm.onrender.com',
   'https://trabalho2-mashup-apis-maximodydyuk-7wtj.onrender.com'
 ];
 
