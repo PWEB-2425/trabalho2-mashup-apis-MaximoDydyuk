@@ -66,8 +66,6 @@ app.get('/check', (req, res) => {
 
 app.listen(3001, () => console.log('Backend rodando'));
 
-const path = require('path');
-
 // Servir o frontend da pasta "frontend"
 app.use(express.static(path.join(__dirname, 'frontend')));
 
