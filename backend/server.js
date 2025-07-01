@@ -32,7 +32,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// Adicione antes das rotas:
+
 app.options('*', cors());
 
 // Middlewares - Aumentar o limite para JSON
