@@ -12,24 +12,28 @@ const app = express();
 // CORS
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://trab2maximodydyuk.vercel.app'
+  'https://trab2maximodydyuk.vercel.app',
+  'https://trabalho2-mashup-apis-maximodydyuk-r1fm.onrender.com'
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Permitir solicitações sem 'origin'
+    // Permitir solicitações sem 'origin' (como mobile apps)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Origem não permitida por CORS'), false);
+      callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
+
+// Adicione antes das rotas:
+app.options('*', cors());
 
 // Middlewares - Aumentar o limite para JSON
 app.use(express.json({ limit: '10mb' }));
