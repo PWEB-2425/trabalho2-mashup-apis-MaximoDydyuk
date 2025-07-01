@@ -9,31 +9,15 @@ const path = require('path');
 
 const app = express();
 
-// CORS
-const allowedOrigins = [
-  'http://localhost:3000',
+// Configuração do CORS
+app.use(cors({
+  origin: 'http://localhost:3000',
   'https://trab2maximodydyuk.vercel.app',
   'https://trabalho2-mashup-apis-maximodydyuk-r1fm.onrender.com'
-];
-
-app.use(cors({
-  origin: function (origin, callback) {
-    // Permitir solicitações sem 'origin' (como mobile apps)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
-
-
-app.options('*', cors());
 
 // Middlewares - Aumentar o limite para JSON
 app.use(express.json({ limit: '10mb' }));
