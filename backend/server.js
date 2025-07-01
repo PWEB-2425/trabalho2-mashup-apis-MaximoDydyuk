@@ -66,6 +66,15 @@ app.get('/check', (req, res) => {
 
 app.listen(3001, () => console.log('Backend rodando'));
 
+const path = require('path');
+
+// Servir o frontend da pasta "frontend"
+app.use(express.static(path.join(__dirname, 'frontend')));
+
+// Qualquer rota que não for API, serve o index.html
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
+});
 
 // Passport
 require('./config/passport-config');
@@ -89,9 +98,6 @@ const authRoutes = require('./routes/authRoutes');
 const apiRoutes = require('./routes/apiRoutes');
 app.use('/api/auth', authRoutes);
 app.use('/api', apiRoutes);
-
-// Servir arquivos estáticos (se necessário)
-app.use(express.static(path.join(__dirname, 'public')));
 
 
 // Rota de status
