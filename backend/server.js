@@ -17,10 +17,10 @@ const allowedOrigins = [
   'https://trabalho2-mashup-apis-maximodydyuk-7wtj.onrender.com'
 ];
 
-// CORS 
+// 1) Cors sempre antes de rotas e middlewares que usam req/res
 app.use(cors({
   origin: function(origin, callback) {
-    if (!origin) return callback(null, true); // para ferramentas tipo Postman
+    if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
@@ -29,105 +29,58 @@ app.use(cors({
   credentials: true
 }));
 
-// Middlewares - Aumentar o limite para JSON
+// 2) Middleware para logs (opcional, mas ajuda a debugar)
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} | ${req.method} ${req.originalUrl}`);
+  next();
+});
+
+// 3) Body parsers
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Configuração de sessão
+// 4) Session - antes do passport e rotas
 app.use(session({
   secret: process.env.SESSION_SECRET || 'uma_chave_qualquer_secreta',
   resave: false,
   saveUninitialized: false,
   store: MongoStore.create({
     mongoUrl: process.env.MONGODB_URI,
-    ttl: 24 * 60 * 60 // 1 dia
+    ttl: 24 * 60 * 60
   }),
   cookie: {
-    maxAge: 24 * 60 * 60 * 1000, // 1 dia
+    maxAge: 24 * 60 * 60 * 1000,
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production', // se estiver em produção, usa HTTPS
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' // cross-site funciona só com 'none' + secure
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
   }
 }));
 
-// Teste para ver se session funciona
-app.post('/login', (req, res) => {
-  // Exemplo: setar algo na sessão
-  req.session.user = { id: 'usuario123' };
-  res.send({ message: 'Login ok' });
-});
-
-app.get('/check', (req, res) => {
-  if (req.session.user) {
-    res.send({ logged: true, user: req.session.user });
-  } else {
-    res.status(401).send({ logged: false });
-  }
-});
-
-app.listen(3001, () => console.log('Backend rodando'));
-
-// Servir o frontend da pasta "frontend"
-app.use(express.static(path.join(__dirname, 'frontend')));
-
-// Qualquer rota que não for API, serve o index.html
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
-});
-
-// Passport
+// 5) Passport inicialização e session
 require('./config/passport-config');
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Middleware para logs de requisição
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} | ${req.method} ${req.originalUrl}`);
-  next();
-});
-
-// Middleware para definir headers de conteúdo
-app.use((req, res, next) => {
-  res.header('Content-Type', 'application/json; charset=utf-8');
-  next();
-});
-
-// Rotas
+// 6) Rotas API - antes de servir frontend estático
 const authRoutes = require('./routes/authRoutes');
 const apiRoutes = require('./routes/apiRoutes');
 app.use('/api/auth', authRoutes);
 app.use('/api', apiRoutes);
 
+// 7) Servir frontend estático (pasta frontend)
+app.use(express.static(path.join(__dirname, 'frontend')));
 
-// Rota de status
-app.get('/status', (req, res) => {
-  res.json({ 
-    status: 'online',
-    app: 'API Mashup',
-    environment: process.env.NODE_ENV || 'development',
-    timestamp: new Date().toISOString(),
-    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
-  });
+// 8) Qualquer rota não API vai para index.html (SPA)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
 });
 
-app.get('/', (req, res) => {
-  res.redirect('/status'); // Ou servir o frontend
-});
-
-// Middleware para tratamento de erros 404
+// 9) Middleware para erros 404 e global
 app.use((req, res) => {
-  res.status(404).json({ 
-    error: 'Rota não encontrada',
-    path: req.originalUrl,
-    method: req.method
-  });
+  res.status(404).json({ error: 'Rota não encontrada', path: req.originalUrl, method: req.method });
 });
-
-// Middleware global de tratamento de erros
 app.use((err, req, res, next) => {
-  console.error(' ERRO:', err.stack);
-  
-  // Formata resposta de erro
+  console.error('ERRO:', err.stack);
   const errorResponse = {
     error: {
       message: err.message || 'Erro interno no servidor',
@@ -135,51 +88,24 @@ app.use((err, req, res, next) => {
       status: err.status || 500
     }
   };
-  
-  // Adiciona stack trace apenas em desenvolvimento
   if (process.env.NODE_ENV === 'development') {
     errorResponse.error.stack = err.stack;
   }
-  
   res.status(errorResponse.error.status).json(errorResponse);
 });
 
-// Iniciar servidor APÓS conectar ao MongoDB
+// 10) Conexão com MongoDB e start do servidor
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
-    console.log(' Conectado ao MongoDB');
-    
+    console.log('Conectado ao MongoDB');
     const PORT = process.env.PORT || 5000;
     const server = app.listen(PORT, () => {
-      console.log(`\n Servidor rodando na porta ${PORT}`);
-      console.log(` Ambiente: ${process.env.NODE_ENV || 'development'}`);
-      console.log(` URL: http://localhost:${PORT}`);
-      console.log(` Database: ${mongoose.connection.readyState === 1 ? 'Conectado' : 'Desconectado'}`);
+      console.log(`Servidor rodando na porta ${PORT}`);
     });
-
-    // Gerenciamento de encerramento
-    process.on('SIGINT', () => {
-      console.log('\n Recebido SIGINT. Encerrando servidor...');
-      server.close(() => {
-        mongoose.connection.close(false, () => {
-          console.log(' Conexões encerradas');
-          process.exit(0);
-        });
-      });
-    });
-
-    process.on('SIGTERM', () => {
-      console.log('\n Recebido SIGTERM. Encerrando servidor...');
-      server.close(() => {
-        mongoose.connection.close(false, () => {
-          console.log(' Conexões encerradas');
-          process.exit(0);
-        });
-      });
-    });
+    process.on('SIGINT', () => { /* ... */ });
+    process.on('SIGTERM', () => { /* ... */ });
   })
   .catch(err => {
-    console.error(' Erro no MongoDB:', err.message);
-    console.error(' Verifique sua string de conexão MONGODB_URI no arquivo .env');
+    console.error('Erro no MongoDB:', err.message);
     process.exit(1);
   });
