@@ -9,7 +9,7 @@ const path = require('path');
 
 const app = express();
 
-// CORS: Domínios permitidos
+// CORS
 const allowedOrigins = [
   'http://localhost:3000',
   'https://trab2maximodydyuk.vercel.app',
@@ -17,11 +17,10 @@ const allowedOrigins = [
   'https://trabalho2-mashup-apis-maximodydyuk-7wtj.onrender.com'
 ];
 
-// Configura CORS
+// CORS 
 app.use(cors({
   origin: function(origin, callback) {
-    // Permite chamadas sem origin (ex: Postman)
-    if (!origin) return callback(null, true);
+    if (!origin) return callback(null, true); // para ferramentas tipo Postman
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
@@ -30,50 +29,53 @@ app.use(cors({
   credentials: true
 }));
 
-// Parsers JSON e URL-encoded com limite aumentado
+// Middlewares - Aumentar o limite para JSON
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Configuração de sessão com MongoDB
+// Configuração de sessão
 app.use(session({
   secret: process.env.SESSION_SECRET || 'uma_chave_qualquer_secreta',
   resave: false,
   saveUninitialized: false,
   store: MongoStore.create({
     mongoUrl: process.env.MONGODB_URI,
-    ttl: 24 * 60 * 60 // 1 dia em segundos
+    ttl: 24 * 60 * 60 // 1 dia
   }),
   cookie: {
-    maxAge: 24 * 60 * 60 * 1000, // 1 dia em ms
+    maxAge: 24 * 60 * 60 * 1000, // 1 dia
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+    secure: process.env.NODE_ENV === 'production', // se estiver em produção, usa HTTPS
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' // cross-site funciona só com 'none' + secure
   }
 }));
 
-// Teste simples de sessão
+// Teste para ver se session funciona
 app.post('/login', (req, res) => {
+  // Exemplo: setar algo na sessão
   req.session.user = { id: 'usuario123' };
-  res.json({ message: 'Login ok' });
+  res.send({ message: 'Login ok' });
 });
 
 app.get('/check', (req, res) => {
   if (req.session.user) {
-    res.json({ logged: true, user: req.session.user });
+    res.send({ logged: true, user: req.session.user });
   } else {
-    res.status(401).json({ logged: false });
+    res.status(401).send({ logged: false });
   }
 });
 
-// Serve frontend estático
+app.listen(3001, () => console.log('Backend rodando'));
+
+// Servir o frontend da pasta "frontend"
 app.use(express.static(path.join(__dirname, 'frontend')));
 
-// Redireciona qualquer rota não-API para frontend (SPA)
+// Qualquer rota que não for API, serve o index.html
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
 });
 
-// Passport (autenticação)
+// Passport
 require('./config/passport-config');
 app.use(passport.initialize());
 app.use(passport.session());
@@ -84,19 +86,20 @@ app.use((req, res, next) => {
   next();
 });
 
-// Define Content-Type JSON para todas as respostas
+// Middleware para definir headers de conteúdo
 app.use((req, res, next) => {
   res.header('Content-Type', 'application/json; charset=utf-8');
   next();
 });
 
-// Rotas da API
+// Rotas
 const authRoutes = require('./routes/authRoutes');
 const apiRoutes = require('./routes/apiRoutes');
 app.use('/api/auth', authRoutes);
 app.use('/api', apiRoutes);
 
-// Rota status para monitorar saúde da API
+
+// Rota de status
 app.get('/status', (req, res) => {
   res.json({ 
     status: 'online',
@@ -107,12 +110,11 @@ app.get('/status', (req, res) => {
   });
 });
 
-// Rota raiz redireciona para status
 app.get('/', (req, res) => {
-  res.redirect('/status');
+  res.redirect('/status'); // Ou servir o frontend
 });
 
-// Middleware para 404
+// Middleware para tratamento de erros 404
 app.use((req, res) => {
   res.status(404).json({ 
     error: 'Rota não encontrada',
@@ -121,10 +123,11 @@ app.use((req, res) => {
   });
 });
 
-// Middleware global de erro
+// Middleware global de tratamento de erros
 app.use((err, req, res, next) => {
-  console.error('ERRO:', err.stack);
-
+  console.error(' ERRO:', err.stack);
+  
+  // Formata resposta de erro
   const errorResponse = {
     error: {
       message: err.message || 'Erro interno no servidor',
@@ -132,49 +135,51 @@ app.use((err, req, res, next) => {
       status: err.status || 500
     }
   };
-
+  
+  // Adiciona stack trace apenas em desenvolvimento
   if (process.env.NODE_ENV === 'development') {
     errorResponse.error.stack = err.stack;
   }
-
+  
   res.status(errorResponse.error.status).json(errorResponse);
 });
 
-// Conecta ao MongoDB e inicia servidor
+// Iniciar servidor APÓS conectar ao MongoDB
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
-    console.log('Conectado ao MongoDB');
-
+    console.log(' Conectado ao MongoDB');
+    
     const PORT = process.env.PORT || 5000;
     const server = app.listen(PORT, () => {
-      console.log(`Servidor rodando na porta ${PORT}`);
-      console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`Database: ${mongoose.connection.readyState === 1 ? 'Conectado' : 'Desconectado'}`);
+      console.log(`\n Servidor rodando na porta ${PORT}`);
+      console.log(` Ambiente: ${process.env.NODE_ENV || 'development'}`);
+      console.log(` URL: http://localhost:${PORT}`);
+      console.log(` Database: ${mongoose.connection.readyState === 1 ? 'Conectado' : 'Desconectado'}`);
     });
 
-    // Tratamento de encerramento gracioso
+    // Gerenciamento de encerramento
     process.on('SIGINT', () => {
-      console.log('Recebido SIGINT. Encerrando servidor...');
+      console.log('\n Recebido SIGINT. Encerrando servidor...');
       server.close(() => {
         mongoose.connection.close(false, () => {
-          console.log('Conexões encerradas');
+          console.log(' Conexões encerradas');
           process.exit(0);
         });
       });
     });
 
     process.on('SIGTERM', () => {
-      console.log('Recebido SIGTERM. Encerrando servidor...');
+      console.log('\n Recebido SIGTERM. Encerrando servidor...');
       server.close(() => {
         mongoose.connection.close(false, () => {
-          console.log('Conexões encerradas');
+          console.log(' Conexões encerradas');
           process.exit(0);
         });
       });
     });
   })
   .catch(err => {
-    console.error('Erro no MongoDB:', err.message);
-    console.error('Verifique sua string de conexão MONGODB_URI no arquivo .env');
+    console.error(' Erro no MongoDB:', err.message);
+    console.error(' Verifique sua string de conexão MONGODB_URI no arquivo .env');
     process.exit(1);
   });
