@@ -9,7 +9,7 @@ const path = require('path');
 
 const app = express();
 
-// 1. Definir trust proxy para produção (obrigatório em Render/Vercel para cookies secure)
+// 1. Definir trust proxy para produção (crítico para cookies em ambientes cloud)
 app.set('trust proxy', 1);
 
 // 2. Lista de origens permitidas para CORS
@@ -19,14 +19,19 @@ const allowedOrigins = [
   'https://trabalho2-mashup-apis-maximodydyuk-7wtj.onrender.com'
 ];
 
-// 3. Middleware de CORS
+// 3. Middleware de CORS com debug
 app.use(cors({
   origin: function (origin, callback) {
-    // Permitir pedidos sem 'origin' (ex: curl, Postman)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('CORS: Request without origin allowed');
+      return callback(null, true);
+    }
+    
     if (allowedOrigins.includes(origin)) {
+      console.log(`CORS: Origin ${origin} allowed`);
       return callback(null, true);
     } else {
+      console.log(`CORS: Origin ${origin} not allowed`);
       return callback(new Error('Origem não permitida pelo CORS'), false);
     }
   },
@@ -39,7 +44,7 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// 5. Configuração da sessão com MongoDB
+// 5. Configuração da sessão com MongoDB (FIXED)
 app.use(session({
   secret: process.env.SESSION_SECRET || 'chave_secreta_aleatoria',
   resave: false,
@@ -51,8 +56,8 @@ app.use(session({
   cookie: {
     maxAge: 24 * 60 * 60 * 1000, // 1 dia
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production', // true em produção
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+    secure: true, // FORÇADO para true em todos os ambientes
+    sameSite: 'none', // FORÇADO para none sempre
     // NÃO definir domain!
   }
 }));
@@ -134,6 +139,8 @@ mongoose.connect(process.env.MONGODB_URI)
       console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
       console.log(`URL: http://localhost:${PORT}`);
       console.log(`Base de dados: ${mongoose.connection.readyState === 1 ? 'Ligada' : 'Desligada'}`);
+      console.log('Configuração de cookies:');
+      console.log(`  secure: true, sameSite: none`);
     });
 
     // Encerramento gracioso
