@@ -16,7 +16,6 @@ const allowedOrigins = [
 ];
 
 app.use(cors({
-  origin: 'http://localhost:3000',
   origin: function (origin, callback) {
     // Permitir solicitações sem 'origin'
     if (!origin) return callback(null, true);
