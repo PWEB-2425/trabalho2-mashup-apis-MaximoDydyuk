@@ -9,7 +9,7 @@ const path = require('path');
 
 const app = express();
 
-// CORS
+// CORS: Domínios permitidos
 const allowedOrigins = [
   'http://localhost:3000',
   'https://trab2maximodydyuk.vercel.app',
@@ -17,9 +17,10 @@ const allowedOrigins = [
   'https://trabalho2-mashup-apis-maximodydyuk-7wtj.onrender.com'
 ];
 
-// 1) Cors sempre antes de rotas e middlewares que usam req/res
+// Configura CORS
 app.use(cors({
   origin: function(origin, callback) {
+    // Permite chamadas sem origin (ex: Postman)
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
@@ -29,58 +30,101 @@ app.use(cors({
   credentials: true
 }));
 
-// 2) Middleware para logs (opcional, mas ajuda a debugar)
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} | ${req.method} ${req.originalUrl}`);
-  next();
-});
-
-// 3) Body parsers
+// Parsers JSON e URL-encoded com limite aumentado
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// 4) Session - antes do passport e rotas
+// Configuração de sessão com MongoDB
 app.use(session({
   secret: process.env.SESSION_SECRET || 'uma_chave_qualquer_secreta',
   resave: false,
   saveUninitialized: false,
   store: MongoStore.create({
     mongoUrl: process.env.MONGODB_URI,
-    ttl: 24 * 60 * 60
+    ttl: 24 * 60 * 60 // 1 dia em segundos
   }),
   cookie: {
-    maxAge: 24 * 60 * 60 * 1000,
+    maxAge: 24 * 60 * 60 * 1000, // 1 dia em ms
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
   }
 }));
 
-// 5) Passport inicialização e session
+// Teste simples de sessão
+app.post('/login', (req, res) => {
+  req.session.user = { id: 'usuario123' };
+  res.json({ message: 'Login ok' });
+});
+
+app.get('/check', (req, res) => {
+  if (req.session.user) {
+    res.json({ logged: true, user: req.session.user });
+  } else {
+    res.status(401).json({ logged: false });
+  }
+});
+
+// Serve frontend estático
+app.use(express.static(path.join(__dirname, 'frontend')));
+
+// Redireciona qualquer rota não-API para frontend (SPA)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
+});
+
+// Passport (autenticação)
 require('./config/passport-config');
 app.use(passport.initialize());
 app.use(passport.session());
 
-// 6) Rotas API - antes de servir frontend estático
+// Middleware para logs de requisição
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} | ${req.method} ${req.originalUrl}`);
+  next();
+});
+
+// Define Content-Type JSON para todas as respostas
+app.use((req, res, next) => {
+  res.header('Content-Type', 'application/json; charset=utf-8');
+  next();
+});
+
+// Rotas da API
 const authRoutes = require('./routes/authRoutes');
 const apiRoutes = require('./routes/apiRoutes');
 app.use('/api/auth', authRoutes);
 app.use('/api', apiRoutes);
 
-// 7) Servir frontend estático (pasta frontend)
-app.use(express.static(path.join(__dirname, 'frontend')));
-
-// 8) Qualquer rota não API vai para index.html (SPA)
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
+// Rota status para monitorar saúde da API
+app.get('/status', (req, res) => {
+  res.json({ 
+    status: 'online',
+    app: 'API Mashup',
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString(),
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
 });
 
-// 9) Middleware para erros 404 e global
+// Rota raiz redireciona para status
+app.get('/', (req, res) => {
+  res.redirect('/status');
+});
+
+// Middleware para 404
 app.use((req, res) => {
-  res.status(404).json({ error: 'Rota não encontrada', path: req.originalUrl, method: req.method });
+  res.status(404).json({ 
+    error: 'Rota não encontrada',
+    path: req.originalUrl,
+    method: req.method
+  });
 });
+
+// Middleware global de erro
 app.use((err, req, res, next) => {
   console.error('ERRO:', err.stack);
+
   const errorResponse = {
     error: {
       message: err.message || 'Erro interno no servidor',
@@ -88,24 +132,49 @@ app.use((err, req, res, next) => {
       status: err.status || 500
     }
   };
+
   if (process.env.NODE_ENV === 'development') {
     errorResponse.error.stack = err.stack;
   }
+
   res.status(errorResponse.error.status).json(errorResponse);
 });
 
-// 10) Conexão com MongoDB e start do servidor
+// Conecta ao MongoDB e inicia servidor
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('Conectado ao MongoDB');
+
     const PORT = process.env.PORT || 5000;
     const server = app.listen(PORT, () => {
       console.log(`Servidor rodando na porta ${PORT}`);
+      console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`Database: ${mongoose.connection.readyState === 1 ? 'Conectado' : 'Desconectado'}`);
     });
-    process.on('SIGINT', () => { /* ... */ });
-    process.on('SIGTERM', () => { /* ... */ });
+
+    // Tratamento de encerramento gracioso
+    process.on('SIGINT', () => {
+      console.log('Recebido SIGINT. Encerrando servidor...');
+      server.close(() => {
+        mongoose.connection.close(false, () => {
+          console.log('Conexões encerradas');
+          process.exit(0);
+        });
+      });
+    });
+
+    process.on('SIGTERM', () => {
+      console.log('Recebido SIGTERM. Encerrando servidor...');
+      server.close(() => {
+        mongoose.connection.close(false, () => {
+          console.log('Conexões encerradas');
+          process.exit(0);
+        });
+      });
+    });
   })
   .catch(err => {
     console.error('Erro no MongoDB:', err.message);
+    console.error('Verifique sua string de conexão MONGODB_URI no arquivo .env');
     process.exit(1);
   });
