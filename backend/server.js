@@ -10,7 +10,6 @@ const path = require('path');
 const app = express();
 
 // Configuração do CORS
-Add commentMore actions
 const allowedOrigins = [
   'http://localhost:3000',
   'https://trab2maximodydyuk.vercel.app'
