@@ -43,20 +43,21 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// 5. Sessão com MongoDB (debug extra)
+// 5. Configuração da sessão com MongoDB (FIXED)
 app.use(session({
   secret: process.env.SESSION_SECRET || 'chave_secreta_aleatoria',
   resave: false,
   saveUninitialized: false,
   store: MongoStore.create({
     mongoUrl: process.env.MONGODB_URI,
-    ttl: 24 * 60 * 60 // 1 dia
+    ttl: 24 * 60 * 60
   }),
+  name: 'session',
   cookie: {
-    maxAge: 24 * 60 * 60 * 1000, // 1 dia
+    maxAge: 24 * 60 * 60 * 1000,
     httpOnly: true,
-    secure: true, // HTTPS obrigatório
-    sameSite: 'none' // cross-origin
+    secure: true,
+    sameSite: 'none'
   }
 }));
 
