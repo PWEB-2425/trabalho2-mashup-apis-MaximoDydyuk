@@ -9,17 +9,17 @@ const path = require('path');
 
 const app = express();
 
-// Trust proxy para ambientes de produção (necessário para cookies "secure")
+// 1. Trust proxy para produção (Vercel/Render/etc)
 app.set('trust proxy', 1);
 
-// Origens permitidas para CORS
+// 2. Origens permitidas para CORS
 const allowedOrigins = [
   'http://localhost:3000',
   'https://trab2maximodydyuk.vercel.app',
   'https://trabalho2-mashup-apis-maximodydyuk-7wtj.onrender.com'
 ];
 
-// Configuração do CORS
+// 3. Middleware CORS
 app.use(cors({
   origin: function (origin, callback) {
     // Permitir solicitações sem 'origin' (ex: curl, Postman)
@@ -30,16 +30,16 @@ app.use(cors({
       callback(new Error('Origem não permitida por CORS'), false);
     }
   },
-  credentials: true, // Fundamental para cookies cross-origin
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Middlewares para JSON e URL-encoded
+// 4. Middlewares para JSON e URL-encoded
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Sessão com MongoDB
+// 5. Sessão com MongoDB
 app.use(session({
   secret: process.env.SESSION_SECRET || 'secret_key_aleatoria',
   resave: false,
@@ -51,38 +51,39 @@ app.use(session({
   cookie: {
     maxAge: 24 * 60 * 60 * 1000, // 1 dia
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production', // true em produção para HTTPS
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' // none para cross-site
+    secure: process.env.NODE_ENV === 'production', // true em produção
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+    // NÃO definir domain!
   }
 }));
 
-// Passport.js
+// 6. Passport.js
 require('./config/passport-config');
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Middleware de logs
+// 7. Middleware de logs
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} | ${req.method} ${req.originalUrl}`);
   next();
 });
 
-// Middleware para definir Content-Type
+// 8. Middleware para definir Content-Type
 app.use((req, res, next) => {
   res.header('Content-Type', 'application/json; charset=utf-8');
   next();
 });
 
-// Rotas
+// 9. Rotas
 const authRoutes = require('./routes/authRoutes');
 const apiRoutes = require('./routes/apiRoutes');
 app.use('/api/auth', authRoutes);
 app.use('/api', apiRoutes);
 
-// Servir arquivos estáticos (opcional)
+// 10. Servir arquivos estáticos (opcional)
 app.use(express.static(path.join(__dirname, 'frontend')));
 
-// Rota de status
+// 11. Rota de status
 app.get('/status', (req, res) => {
   res.json({
     status: 'online',
@@ -93,117 +94,12 @@ app.get('/status', (req, res) => {
   });
 });
 
-// Rota principal
+// 12. Rota principal
 app.get('/', (req, res) => {
   res.redirect('/status');
 });
 
-... (63 linhas)
-Recolher
-message.txt
-5 KB
-﻿
-require('dotenv').config();
-const express = require('express');
-const session = require('express-session');
-const MongoStore = require('connect-mongo');
-const passport = require('passport');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const path = require('path');
-
-const app = express();
-
-// Trust proxy para ambientes de produção (necessário para cookies "secure")
-app.set('trust proxy', 1);
-
-// Origens permitidas para CORS
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://trab2maximodydyuk.vercel.app',
-  'https://trabalho2-mashup-apis-maximodydyuk-7wtj.onrender.com'
-];
-
-// Configuração do CORS
-app.use(cors({
-  origin: function (origin, callback) {
-    // Permitir solicitações sem 'origin' (ex: curl, Postman)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Origem não permitida por CORS'), false);
-    }
-  },
-  credentials: true, // Fundamental para cookies cross-origin
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-
-// Middlewares para JSON e URL-encoded
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Sessão com MongoDB
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'secret_key_aleatoria',
-  resave: false,
-  saveUninitialized: false,
-  store: MongoStore.create({
-    mongoUrl: process.env.MONGODB_URI,
-    ttl: 24 * 60 * 60 // 1 dia
-  }),
-  cookie: {
-    maxAge: 24 * 60 * 60 * 1000, // 1 dia
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production', // true em produção para HTTPS
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' // none para cross-site
-  }
-}));
-
-// Passport.js
-require('./config/passport-config');
-app.use(passport.initialize());
-app.use(passport.session());
-
-// Middleware de logs
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} | ${req.method} ${req.originalUrl}`);
-  next();
-});
-
-// Middleware para definir Content-Type
-app.use((req, res, next) => {
-  res.header('Content-Type', 'application/json; charset=utf-8');
-  next();
-});
-
-// Rotas
-const authRoutes = require('./routes/authRoutes');
-const apiRoutes = require('./routes/apiRoutes');
-app.use('/api/auth', authRoutes);
-app.use('/api', apiRoutes);
-
-// Servir arquivos estáticos (opcional)
-app.use(express.static(path.join(__dirname, 'frontend')));
-
-// Rota de status
-app.get('/status', (req, res) => {
-  res.json({
-    status: 'online',
-    app: 'API Mashup',
-    environment: process.env.NODE_ENV || 'development',
-    timestamp: new Date().toISOString(),
-    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
-  });
-});
-
-// Rota principal
-app.get('/', (req, res) => {
-  res.redirect('/status');
-});
-
-// Middleware 404
+// 13. Middleware 404
 app.use((req, res) => {
   res.status(404).json({
     error: 'Rota não encontrada',
@@ -212,7 +108,7 @@ app.use((req, res) => {
   });
 });
 
-// Middleware global de erros
+// 14. Middleware global de erros
 app.use((err, req, res, next) => {
   console.error('ERRO:', err.stack);
   const errorResponse = {
@@ -228,7 +124,7 @@ app.use((err, req, res, next) => {
   res.status(errorResponse.error.status).json(errorResponse);
 });
 
-// Conexão ao MongoDB e inicialização do servidor
+// 15. Conexão ao MongoDB e inicialização do servidor
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('Conectado ao MongoDB');
