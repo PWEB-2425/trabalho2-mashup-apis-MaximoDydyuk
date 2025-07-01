@@ -1,6 +1,5 @@
 const API_BASE_URL = 'https://trabalho2-mashup-apis-maximodydyuk-r1fm.onrender.com/api';
 const appContainer = document.getElementById('app');
-// Estado da aplicação
 let currentUser = null;
 
 // Inicializar aplicação
@@ -16,13 +15,18 @@ async function checkSession() {
     const response = await fetch(`${API_BASE_URL}/auth/check-session`, {
       credentials: 'include'
     });
-    
+
+    if (response.status === 401) {
+      showLogin();
+      return;
+    }
+
     if (!response.ok) {
       throw new Error('Sessão inválida');
     }
-    
+
     const data = await response.json();
-    
+
     if (data.authenticated) {
       currentUser = data.user;
       showDashboard();
@@ -53,7 +57,7 @@ function showLogin() {
         <button type="submit" class="btn btn-primary w-100">Entrar</button>
       </form>
       <div class="mt-3 text-center">
-        Não tem conta? <a href="#" id="showRegister">Registre-se</a>
+        Não tem conta? <a href="#" id="showRegister">Registe-se</a>
       </div>
     </div>
   `;
@@ -146,7 +150,6 @@ function showDashboard() {
     </div>
   `;
 
-  // Event listeners
   document.getElementById('logoutBtn').addEventListener('click', handleLogout);
   document.getElementById('citySearchForm').addEventListener('submit', handleCitySearch);
   document.getElementById('imageSearchForm').addEventListener('submit', handleImageSearch);
@@ -155,7 +158,6 @@ function showDashboard() {
     showHistory();
   });
   
-  // Limpar resultados anteriores
   document.getElementById('cityInput').value = '';
   document.getElementById('imageInput').value = '';
   document.getElementById('cityResults').innerHTML = '';
@@ -168,13 +170,18 @@ async function showHistory() {
     const response = await fetch(`${API_BASE_URL}/history`, {
       credentials: 'include'
     });
-    
+
+    if (response.status === 401) {
+      showLogin();
+      return;
+    }
+
     if (!response.ok) {
       throw new Error('Erro ao carregar histórico');
     }
-    
+
     const searches = await response.json();
-    
+
     let historyHTML = `
       <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -196,7 +203,6 @@ async function showHistory() {
     
     searches.forEach(search => {
       let details = '';
-      
       if (search.type === 'city') {
         details = `
           <div>
@@ -212,7 +218,6 @@ async function showHistory() {
           </div>
         `;
       }
-      
       historyHTML += `
         <tr>
           <td>${new Date(search.date).toLocaleString()}</td>
@@ -222,7 +227,7 @@ async function showHistory() {
         </tr>
       `;
     });
-    
+
     historyHTML += `
             </tbody>
           </table>
@@ -230,7 +235,7 @@ async function showHistory() {
         </div>
       </div>
     `;
-    
+
     appContainer.innerHTML = `
       <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
         <div class="container">
@@ -240,7 +245,7 @@ async function showHistory() {
       </nav>
       ${historyHTML}
     `;
-    
+
     document.getElementById('logoutBtn').addEventListener('click', handleLogout);
     document.getElementById('backToDashboard').addEventListener('click', showDashboard);
     document.getElementById('clearHistory').addEventListener('click', clearHistory);
@@ -252,18 +257,22 @@ async function showHistory() {
 // Limpar histórico
 async function clearHistory() {
   if (!confirm('Tem certeza que deseja limpar todo o histórico?')) return;
-  
+
   try {
     const response = await fetch(`${API_BASE_URL}/history`, {
       method: 'DELETE',
       credentials: 'include'
     });
-    
+
+    if (response.status === 401) {
+      showLogin();
+      return;
+    }
+
     if (!response.ok) {
       throw new Error('Erro ao limpar histórico');
     }
-    
-    // Recarregar o histórico vazio
+
     await showHistory();
   } catch (error) {
     showError('Erro ao limpar histórico: ' + error.message);
@@ -275,7 +284,7 @@ async function handleLogin(e) {
   e.preventDefault();
   const username = document.getElementById('username').value;
   const password = document.getElementById('password').value;
-  
+
   try {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
@@ -283,14 +292,19 @@ async function handleLogin(e) {
       body: JSON.stringify({ username, password }),
       credentials: 'include'
     });
-    
+
+    if (response.status === 401) {
+      showError('Credenciais inválidas');
+      return;
+    }
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.error || 'Credenciais inválidas');
     }
-    
+
     const data = await response.json();
-    
+
     if (data.success) {
       currentUser = data.user;
       showDashboard();
@@ -307,7 +321,7 @@ async function handleRegister(e) {
   e.preventDefault();
   const username = document.getElementById('regUsername').value;
   const password = document.getElementById('regPassword').value;
-  
+
   try {
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: 'POST',
@@ -315,14 +329,19 @@ async function handleRegister(e) {
       body: JSON.stringify({ username, password }),
       credentials: 'include'
     });
-    
+
+    if (response.status === 401) {
+      showError('Erro no registro');
+      return;
+    }
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.error || 'Erro no registro');
     }
-    
+
     const data = await response.json();
-    
+
     if (data.success) {
       currentUser = data.user;
       showDashboard();
@@ -337,18 +356,14 @@ async function handleRegister(e) {
 // Manipulador de logout
 async function handleLogout() {
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/logout`, {
+    await fetch(`${API_BASE_URL}/auth/logout`, {
       credentials: 'include'
     });
-    
-    const data = await response.json();
-    
-    if (data.success) {
-      currentUser = null;
-      showLogin();
-    }
   } catch (error) {
-    showError('Erro ao fazer logout');
+    // mesmo que dê erro, força logout local
+  } finally {
+    currentUser = null;
+    showLogin();
   }
 }
 
@@ -357,22 +372,26 @@ async function handleCitySearch(e) {
   e.preventDefault();
   const city = document.getElementById('cityInput').value;
   const resultsDiv = document.getElementById('cityResults');
-  
-  // Mostrar loading
+
   resultsDiv.innerHTML = '<div class="text-center">Carregando... <div class="spinner-border"></div></div>';
-  
+
   try {
     const response = await fetch(`${API_BASE_URL}/search/city?term=${encodeURIComponent(city)}`, {
       credentials: 'include'
     });
-    
+
+    if (response.status === 401) {
+      showLogin();
+      return;
+    }
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.error || `Erro ${response.status}: ${response.statusText}`);
     }
-    
+
     const data = await response.json();
-    
+
     resultsDiv.innerHTML = `
       <div class="card">
         <div class="card-body">
@@ -414,24 +433,27 @@ async function handleImageSearch(e) {
   e.preventDefault();
   const term = document.getElementById('imageInput').value;
   const resultsDiv = document.getElementById('imageResults');
-  
-  // Mostrar loading
+
   resultsDiv.innerHTML = '<div class="text-center">Carregando... <div class="spinner-border"></div></div>';
-  
+
   try {
     const response = await fetch(`${API_BASE_URL}/search/image?term=${encodeURIComponent(term)}`, {
       credentials: 'include'
     });
-    
+
+    if (response.status === 401) {
+      showLogin();
+      return;
+    }
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.error || `Erro ${response.status}: ${response.statusText}`);
     }
-    
+
     const images = await response.json();
-    
+
     let imagesHTML = '<div class="row g-3">';
-    
     images.forEach(image => {
       imagesHTML += `
         <div class="col-md-4">
@@ -444,7 +466,6 @@ async function handleImageSearch(e) {
         </div>
       `;
     });
-    
     imagesHTML += '</div>';
     resultsDiv.innerHTML = imagesHTML;
   } catch (error) {
@@ -462,4 +483,3 @@ function showError(message) {
     alert(message);
   }
 }
-
