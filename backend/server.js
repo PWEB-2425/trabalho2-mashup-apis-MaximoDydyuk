@@ -15,7 +15,7 @@ app.set('trust proxy', 1);
 // 2. Origens permitidas para CORS
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://trab2maximodydyuk.vercel.app',
+  'https://trabalho2-mashup-apis-maximo-dydyuk-nine.vercel.app',
   'https://trabalho2-mashup-apis-maximodydyuk-7wtj.onrender.com'
 ];
 
