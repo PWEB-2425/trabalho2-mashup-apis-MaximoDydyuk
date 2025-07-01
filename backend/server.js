@@ -9,27 +9,24 @@ const path = require('path');
 
 const app = express();
 
-// Configuração do CORS
+// CORS
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://trab2maximodydyuk.vercel.app'
+  'https://trab2maximodydyuk.vercel.app',
+  'https://trabalho2-mashup-apis-maximodydyuk-r1fm.onrender.com/api'
 ];
 
+// CORS 
 app.use(cors({
-  origin: function (origin, callback) {
-    // Permitir solicitações sem 'origin'
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Origem não permitida por CORS'), false);
+  origin: function(origin, callback) {
+    if (!origin) return callback(null, true); // para ferramentas tipo Postman
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
     }
+    callback(new Error('CORS não permitido'));
   },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-  }));
+  credentials: true
+}));
 
 // Middlewares - Aumentar o limite para JSON
 app.use(express.json({ limit: '10mb' }));
@@ -37,20 +34,37 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Configuração de sessão
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'secret_key_aleatoria',
+  secret: process.env.SESSION_SECRET || 'uma_chave_qualquer_secreta',
   resave: false,
   saveUninitialized: false,
-  store: MongoStore.create({ 
+  store: MongoStore.create({
     mongoUrl: process.env.MONGODB_URI,
     ttl: 24 * 60 * 60 // 1 dia
   }),
   cookie: {
     maxAge: 24 * 60 * 60 * 1000, // 1 dia
     httpOnly: true,
-    secure: true,         
-    sameSite: 'none'         // ESSENCIAL pra cookies cross-site funcionarem
+    secure: process.env.NODE_ENV === 'production', // se estiver em produção, usa HTTPS
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' // cross-site funciona só com 'none' + secure
   }
 }));
+
+// Teste para ver se session funciona
+app.post('/login', (req, res) => {
+  // Exemplo: setar algo na sessão
+  req.session.user = { id: 'usuario123' };
+  res.send({ message: 'Login ok' });
+});
+
+app.get('/check', (req, res) => {
+  if (req.session.user) {
+    res.send({ logged: true, user: req.session.user });
+  } else {
+    res.status(401).send({ logged: false });
+  }
+});
+
+app.listen(3001, () => console.log('Backend rodando'));
 
 
 // Passport
