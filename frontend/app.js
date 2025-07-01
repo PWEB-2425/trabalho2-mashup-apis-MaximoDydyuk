@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://trabalho2-mashup-apis-maximodydyuk-r1fm.onrender.com/api'; 
+const API_BASE_URL = 'https://trabalho2-mashup-apis-maximodydyuk-7wtj.onrender.com/api'; 
 const appContainer = document.getElementById('app');
 let currentUser = null;
 
