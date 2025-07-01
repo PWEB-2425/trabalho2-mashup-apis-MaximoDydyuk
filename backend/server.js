@@ -5,110 +5,102 @@ const MongoStore = require('connect-mongo');
 const passport = require('passport');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const path = require('path');
 
 const app = express();
 
-// 1. Trust proxy
+// 1. Trust proxy obrigatório
 app.set('trust proxy', 1);
 
-// 2. Origens permitidas para CORS
+// 2. Origens permitidas (domínio EXATO do Vercel)
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://trabalho2-mashup-apis-maximo-dydyuk-nine.vercel.app',
-  'https://trabalho2-mashup-apis-maximodydyuk-7wtj.onrender.com'
+  'https://trabalho2-mashup-apis-maximo-dydyuk-nine.vercel.app'
 ];
 
-// 3. Middleware de CORS (CORRIGIDO)
+// 3. CORS configurado especificamente para cookies cross-origin
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin) {
-      console.log('CORS: Pedido sem origem permitido');
-      return callback(null, true);
-    } // ✅ CHAVE ADICIONADA
-    
+    if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) {
-      console.log(`CORS: Origem permitida: ${origin}`);
       return callback(null, true);
     } else {
-      console.log(`CORS BLOQUEADO: ${origin} não permitido`);
       return callback(new Error('Origem não permitida pelo CORS'), false);
-    } // ✅ CHAVE ADICIONADA
+    }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Set-Cookie']
 }));
 
-// 4. Middlewares para JSON
+// 4. Middleware para OPTIONS preflight
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    res.header('Access-Control-Allow-Origin', req.headers.origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With');
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
+
+// 5. Middlewares para JSON
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// 5. Configuração da sessão
+// 6. Configuração de sessão OTIMIZADA para cross-origin
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'chave_secreta_aleatoria',
+  secret: process.env.SESSION_SECRET || 'chave_secreta_muito_forte',
   resave: false,
   saveUninitialized: false,
   store: MongoStore.create({
     mongoUrl: process.env.MONGODB_URI,
     ttl: 24 * 60 * 60
   }),
+  name: 'sessionId', // Nome específico
   cookie: {
     maxAge: 24 * 60 * 60 * 1000,
     httpOnly: true,
     secure: true,
     sameSite: 'none',
-    domain: '.onrender.com'
+    // NÃO definir domain para evitar conflitos
   }
 }));
 
-// 6. Passport.js
+// 7. Passport.js
 require('./config/passport-config');
 app.use(passport.initialize());
 app.use(passport.session());
 
-// 7. Debug de sessão
+// 8. Debug detalhado
 app.use((req, res, next) => {
-  console.log('--- NOVO PEDIDO ---');
-  console.log('Data:', new Date().toISOString());
-  console.log('Método:', req.method, '| URL:', req.originalUrl);
+  console.log('--- PEDIDO ---');
+  console.log('Origin:', req.headers.origin);
+  console.log('Method:', req.method);
+  console.log('URL:', req.originalUrl);
+  console.log('Cookies:', req.headers.cookie);
   console.log('SessionID:', req.sessionID);
-  console.log('Cookies recebidos:', req.headers.cookie);
-  console.log('Utilizador autenticado:', req.isAuthenticated ? req.isAuthenticated() : false);
-  console.log('req.user:', req.user);
+  console.log('Authenticated:', req.isAuthenticated ? req.isAuthenticated() : false);
   next();
 });
 
-// 8. Rotas (SEM duplicações)
+// 9. Middleware para forçar headers CORS em todas as respostas
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+  }
+  next();
+});
+
+// 10. Rotas
 const authRoutes = require('./routes/authRoutes');
 const apiRoutes = require('./routes/apiRoutes');
 app.use('/api/auth', authRoutes);
-app.use('/api', apiRoutes); // ✅ Usa as rotas reais do apiRoutes.js
-
-// 9. Rota de status
-app.get('/status', (req, res) => {
-  res.json({
-    status: 'online',
-    app: 'API Mashup',
-    ambiente: process.env.NODE_ENV || 'development',
-    data_hora: new Date().toISOString(),
-    base_de_dados: mongoose.connection.readyState === 1 ? 'ligada' : 'desligada'
-  });
-});
-
-// 10. Rota principal
-app.get('/', (req, res) => {
-  res.redirect('/status');
-});
-
-// 11. Middleware 404
-app.use((req, res) => {
-  res.status(404).json({
-    erro: 'Rota não encontrada',
-    caminho: req.originalUrl,
-    método: req.method
-  });
-});
+app.use('/api', apiRoutes);
 
 // 12. Middleware de erros
 app.use((err, req, res, next) => {
