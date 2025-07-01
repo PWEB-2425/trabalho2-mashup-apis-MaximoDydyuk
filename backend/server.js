@@ -9,29 +9,28 @@ const path = require('path');
 
 const app = express();
 
-// 1. Trust proxy crítico para ambientes cloud
+// 1. Trust proxy (fundamental para cookies secure em cloud)
 app.set('trust proxy', 1);
 
-// 2. Lista de origens permitidas para CORS
+// 2. Origens permitidas para CORS
 const allowedOrigins = [
   'http://localhost:3000',
   'https://trab2maximodydyuk.vercel.app',
   'https://trabalho2-mashup-apis-maximodydyuk-7wtj.onrender.com'
 ];
 
-// 3. Middleware de CORS com debug aprimorado
+// 3. Middleware de CORS com debug
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) {
-      console.log('CORS: Pedido sem origem permitido (local/teste)');
+      console.log('CORS: Pedido sem origem permitido (ex: curl/Postman)');
       return callback(null, true);
     }
-    
     if (allowedOrigins.includes(origin)) {
       console.log(`CORS: Origem permitida: ${origin}`);
       return callback(null, true);
     } else {
-      console.log(`CORS BLOCKED: ${origin} não está na lista permitida`);
+      console.log(`CORS BLOQUEADO: ${origin} não está na lista permitida`);
       return callback(new Error('Origem não permitida pelo CORS'), false);
     }
   },
@@ -44,7 +43,7 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// 5. Configuração da sessão com MongoDB (FIXED)
+// 5. Sessão com MongoDB (debug extra)
 app.use(session({
   secret: process.env.SESSION_SECRET || 'chave_secreta_aleatoria',
   resave: false,
@@ -56,19 +55,25 @@ app.use(session({
   cookie: {
     maxAge: 24 * 60 * 60 * 1000, // 1 dia
     httpOnly: true,
-    secure: true, // SEMPRE true (HTTPS obrigatório)
-    sameSite: 'none', // SEMPRE none para cross-origin
+    secure: true, // HTTPS obrigatório
+    sameSite: 'none' // cross-origin
   }
 }));
 
-// 6. Passport.js (DEVE vir depois da sessão)
-require('./config/passport-config'); // <-- Verifica se este ficheiro está correto!
+// 6. Passport.js
+require('./config/passport-config');
 app.use(passport.initialize());
 app.use(passport.session());
 
-// 7. Middleware de logs com informações de sessão
+// 7. Debug global de sessão e autenticação
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} | ${req.method} ${req.originalUrl} | SessionID: ${req.sessionID} | Authenticated: ${req.isAuthenticated() ? 'Sim' : 'Não'}`);
+  console.log('--- NOVO PEDIDO ---');
+  console.log('Data:', new Date().toISOString());
+  console.log('Método:', req.method, '| URL:', req.originalUrl);
+  console.log('SessionID:', req.sessionID);
+  console.log('Cookies recebidos:', req.headers.cookie);
+  console.log('Sessão:', req.session);
+  console.log('Utilizador autenticado:', req.isAuthenticated ? req.isAuthenticated() : false, '| req.user:', req.user);
   next();
 });
 
@@ -78,16 +83,40 @@ app.use((req, res, next) => {
   next();
 });
 
-// 9. Rotas
-const authRoutes = require('./routes/authRoutes');
-const apiRoutes = require('./routes/apiRoutes');
-app.use('/api/auth', authRoutes);
-app.use('/api', apiRoutes); // <-- Garante que as rotas aqui usam autenticação!
+// 9. Middleware de autenticação para rotas protegidas
+function isAuthenticated(req, res, next) {
+  if (req.isAuthenticated && req.isAuthenticated()) {
+    console.log('Autenticação: Utilizador está autenticado');
+    return next();
+  }
+  console.log('Autenticação: NÃO autenticado - 401');
+  res.status(401).json({ error: 'Não autenticado' });
+}
 
-// 10. Servir ficheiros estáticos (opcional)
+// 10. Rotas de autenticação
+const authRoutes = require('./routes/authRoutes');
+app.use('/api/auth', authRoutes);
+
+// 11. Rotas de API (exemplo de rota protegida com debug)
+const expressRouter = require('express').Router();
+expressRouter.get('/search/city', isAuthenticated, (req, res) => {
+  console.log('Acedida rota protegida /search/city');
+  res.json({ message: 'Acesso autorizado à cidade', user: req.user });
+});
+expressRouter.get('/search/image', isAuthenticated, (req, res) => {
+  console.log('Acedida rota protegida /search/image');
+  res.json({ message: 'Acesso autorizado à imagem', user: req.user });
+});
+expressRouter.get('/history', isAuthenticated, (req, res) => {
+  console.log('Acedida rota protegida /history');
+  res.json({ message: 'Acesso autorizado ao histórico', user: req.user });
+});
+app.use('/api', expressRouter);
+
+// 12. Servir ficheiros estáticos (opcional)
 app.use(express.static(path.join(__dirname, 'frontend')));
 
-// 11. Rota de status (pública)
+// 13. Rota de status (pública)
 app.get('/status', (req, res) => {
   res.json({
     status: 'online',
@@ -99,12 +128,12 @@ app.get('/status', (req, res) => {
   });
 });
 
-// 12. Rota principal
+// 14. Rota principal
 app.get('/', (req, res) => {
   res.redirect('/status');
 });
 
-// 13. Middleware para erro 404
+// 15. Middleware para erro 404
 app.use((req, res) => {
   res.status(404).json({
     erro: 'Rota não encontrada',
@@ -113,7 +142,7 @@ app.use((req, res) => {
   });
 });
 
-// 14. Middleware global de erros
+// 16. Middleware global de erros
 app.use((err, req, res, next) => {
   console.error('ERRO GLOBAL:', err.stack);
   const respostaErro = {
@@ -129,7 +158,7 @@ app.use((err, req, res, next) => {
   res.status(respostaErro.erro.estado).json(respostaErro);
 });
 
-// 15. Conexão ao MongoDB e arranque do servidor
+// 17. Conexão ao MongoDB e arranque do servidor
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('✅ Ligação à base de dados MongoDB estabelecida com sucesso.');
