@@ -1,34 +1,78 @@
-const API_BASE_URL = 'https://trabalho2-mashup-apis-maximodydyuk-7wtj.onrender.com/api'; 
+const API_BASE_URL = 'https://trabalho2-mashup-apis-maximodydyuk-7wtj.onrender.com/api';
 const appContainer = document.getElementById('app');
 let currentUser = null;
 
-// 1. Função para corrigir políticas de cookies
-function fixCookiePolicies() {
+// 1. Configuração avançada para forçar cookies cross-origin
+function setupCrossOriginCookies() {
+  // Força configurações globais para cookies cross-origin
   if (typeof document !== 'undefined') {
-    // Força o browser a aceitar cookies cross-origin
-    document.cookie = "SameSite=None; Secure";
-    console.log('[DEBUG] fixCookiePolicies chamada');
+    // Override global do fetch para sempre incluir credentials
+    const originalFetch = window.fetch;
+    window.fetch = function(url, options = {}) {
+      const enhancedOptions = {
+        ...options,
+        credentials: 'include',
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          ...options.headers
+        }
+      };
+      return originalFetch(url, enhancedOptions);
+    };
+
+    // Força políticas de cookies no browser
+    document.cookie = "SameSite=None; Secure; Path=/";
+    
+    // Configuração adicional para Vercel
+    if (window.location.hostname.includes('vercel.app')) {
+      document.cookie = "cross-site-cookie=1; SameSite=None; Secure; Path=/";
+    }
+    
+    console.log('[DEBUG] Configurações cross-origin aplicadas');
   }
 }
 
+// 2. Função auxiliar para fetch com configuração forçada
+async function fetchWithForcedCredentials(url, options = {}) {
+  const enhancedOptions = {
+    credentials: 'include',
+    mode: 'cors',
+    cache: 'no-cache',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+      ...options.headers
+    },
+    ...options
+  };
+
+  console.log(`[DEBUG] Fazendo fetch para: ${url}`);
+  console.log(`[DEBUG] Opções do fetch:`, enhancedOptions);
+
+  const response = await fetch(url, enhancedOptions);
+  
+  console.log(`[DEBUG] Response status: ${response.status}`);
+  console.log(`[DEBUG] Response headers:`, [...response.headers.entries()]);
+  
+  return response;
+}
+
 // Inicializar aplicação
+setupCrossOriginCookies();
 init();
 
 async function init() {
-  fixCookiePolicies();
   await checkSession();
 }
 
-// Verificar sessão com debug
+// Verificar sessão com configuração forçada
 async function checkSession() {
   console.log('[DEBUG] Iniciando verificação de sessão...');
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/check-session`, {
-      credentials: 'include'
-    });
-
-    console.log(`[DEBUG] /auth/check-session status: ${response.status}`);
-    console.log(`[DEBUG] /auth/check-session headers:`, [...response.headers.entries()]);
+    const response = await fetchWithForcedCredentials(`${API_BASE_URL}/auth/check-session`);
 
     if (response.status === 401) {
       console.log('[DEBUG] Sessão inválida (401)');
@@ -187,13 +231,10 @@ function showDashboard() {
 async function showHistory() {
   console.log('[DEBUG] Mostrando histórico');
   try {
-    const response = await fetch(`${API_BASE_URL}/history`, {
-      credentials: 'include'
-    });
-
-    console.log(`[DEBUG] /history status: ${response.status}`);
+    const response = await fetchWithForcedCredentials(`${API_BASE_URL}/history`);
 
     if (response.status === 401) {
+      console.log('[DEBUG] Não autenticado no histórico');
       showLogin();
       return;
     }
@@ -273,6 +314,7 @@ async function showHistory() {
     document.getElementById('backToDashboard').addEventListener('click', showDashboard);
     document.getElementById('clearHistory').addEventListener('click', clearHistory);
   } catch (error) {
+    console.error('[DEBUG] Erro no histórico:', error);
     showError('Erro ao carregar histórico: ' + error.message);
   }
 }
@@ -283,14 +325,12 @@ async function clearHistory() {
 
   console.log('[DEBUG] Limpando histórico...');
   try {
-    const response = await fetch(`${API_BASE_URL}/history`, {
-      method: 'DELETE',
-      credentials: 'include'
+    const response = await fetchWithForcedCredentials(`${API_BASE_URL}/history`, {
+      method: 'DELETE'
     });
 
-    console.log(`[DEBUG] /history DELETE status: ${response.status}`);
-
     if (response.status === 401) {
+      console.log('[DEBUG] Não autenticado ao limpar histórico');
       showLogin();
       return;
     }
@@ -299,13 +339,15 @@ async function clearHistory() {
       throw new Error('Erro ao limpar histórico');
     }
 
+    console.log('[DEBUG] Histórico limpo com sucesso');
     await showHistory();
   } catch (error) {
+    console.error('[DEBUG] Erro ao limpar histórico:', error);
     showError('Erro ao limpar histórico: ' + error.message);
   }
 }
 
-// Manipulador de login
+// Manipulador de login com forçamento de cookies
 async function handleLogin(e) {
   e.preventDefault();
   const username = document.getElementById('username').value;
@@ -313,17 +355,13 @@ async function handleLogin(e) {
   console.log('[DEBUG] Tentativa de login para:', username);
 
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    const response = await fetchWithForcedCredentials(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-      credentials: 'include'
+      body: JSON.stringify({ username, password })
     });
 
-    console.log(`[DEBUG] /auth/login status: ${response.status}`);
-    console.log('[DEBUG] /auth/login headers:', [...response.headers.entries()]);
-
     if (response.status === 401) {
+      console.log('[DEBUG] Credenciais inválidas');
       showError('Credenciais inválidas');
       return;
     }
@@ -337,12 +375,21 @@ async function handleLogin(e) {
     console.log('[DEBUG] Resposta do login:', data);
 
     if (data.success) {
+      console.log('[DEBUG] Login bem-sucedido, forçando configuração de cookies...');
+      
+      // Força configuração adicional de cookies após login
+      setupCrossOriginCookies();
+      
+      // Aguarda um pouco para garantir que o cookie foi definido
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       currentUser = data.user;
       showDashboard();
     } else {
       showError(data.error || 'Credenciais inválidas');
     }
   } catch (error) {
+    console.error('[DEBUG] Erro no login:', error);
     showError(error.message || 'Erro na conexão com o servidor');
   }
 }
@@ -355,16 +402,13 @@ async function handleRegister(e) {
   console.log('[DEBUG] Tentativa de registro para:', username);
 
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    const response = await fetchWithForcedCredentials(`${API_BASE_URL}/auth/register`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-      credentials: 'include'
+      body: JSON.stringify({ username, password })
     });
 
-    console.log(`[DEBUG] /auth/register status: ${response.status}`);
-
     if (response.status === 401) {
+      console.log('[DEBUG] Erro no registro');
       showError('Erro no registro');
       return;
     }
@@ -378,12 +422,19 @@ async function handleRegister(e) {
     console.log('[DEBUG] Resposta do registro:', data);
 
     if (data.success) {
+      console.log('[DEBUG] Registro bem-sucedido');
+      
+      // Força configuração de cookies após registro
+      setupCrossOriginCookies();
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       currentUser = data.user;
       showDashboard();
     } else {
       showError(data.error || 'Erro no registro');
     }
   } catch (error) {
+    console.error('[DEBUG] Erro no registro:', error);
     showError(error.message || 'Erro na conexão com o servidor');
   }
 }
@@ -392,13 +443,15 @@ async function handleRegister(e) {
 async function handleLogout() {
   console.log('[DEBUG] Iniciando logout...');
   try {
-    await fetch(`${API_BASE_URL}/auth/logout`, {
-      credentials: 'include'
-    });
+    await fetchWithForcedCredentials(`${API_BASE_URL}/auth/logout`);
     console.log('[DEBUG] Logout bem-sucedido');
   } catch (error) {
     console.error('[DEBUG] Erro no logout:', error);
   } finally {
+    // Limpa cookies locais
+    document.cookie = "sessionId=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=None; Secure";
+    document.cookie = "session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=None; Secure";
+    
     currentUser = null;
     showLogin();
   }
@@ -414,14 +467,10 @@ async function handleCitySearch(e) {
   resultsDiv.innerHTML = '<div class="text-center">Carregando... <div class="spinner-border"></div></div>';
 
   try {
-    const response = await fetch(`${API_BASE_URL}/search/city?term=${encodeURIComponent(city)}`, {
-      credentials: 'include'
-    });
-
-    console.log(`[DEBUG] /search/city status: ${response.status}`);
-    console.log('[DEBUG] /search/city headers:', [...response.headers.entries()]);
+    const response = await fetchWithForcedCredentials(`${API_BASE_URL}/search/city?term=${encodeURIComponent(city)}`);
 
     if (response.status === 401) {
+      console.log('[DEBUG] Não autenticado na pesquisa de cidade');
       showLogin();
       return;
     }
@@ -466,6 +515,7 @@ async function handleCitySearch(e) {
       </div>
     `;
   } catch (error) {
+    console.error('[DEBUG] Erro na pesquisa de cidade:', error);
     resultsDiv.innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
   }
 }
@@ -480,13 +530,10 @@ async function handleImageSearch(e) {
   resultsDiv.innerHTML = '<div class="text-center">Carregando... <div class="spinner-border"></div></div>';
 
   try {
-    const response = await fetch(`${API_BASE_URL}/search/image?term=${encodeURIComponent(term)}`, {
-      credentials: 'include'
-    });
-
-    console.log(`[DEBUG] /search/image status: ${response.status}`);
+    const response = await fetchWithForcedCredentials(`${API_BASE_URL}/search/image?term=${encodeURIComponent(term)}`);
 
     if (response.status === 401) {
+      console.log('[DEBUG] Não autenticado na pesquisa de imagem');
       showLogin();
       return;
     }
@@ -515,6 +562,7 @@ async function handleImageSearch(e) {
     imagesHTML += '</div>';
     resultsDiv.innerHTML = imagesHTML;
   } catch (error) {
+    console.error('[DEBUG] Erro na pesquisa de imagem:', error);
     resultsDiv.innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
   }
 }
