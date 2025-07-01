@@ -15,7 +15,7 @@ const allowedOrigins = [
   'https://trab2maximodydyuk.vercel.app'
 ];
 
-app.use(cors({Add commentMore actions
+app.use(cors({
   origin: function (origin, callback) {
     // Permitir solicitações sem 'origin'
     if (!origin) return callback(null, true);
