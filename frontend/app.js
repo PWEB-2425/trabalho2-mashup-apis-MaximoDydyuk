@@ -1,14 +1,12 @@
-const API_BASE_URL = 'https://trabalho2-mashup-apis-maximodydyuk-7wtj.onrender.com/api';
+const API_BASE_URL = 'https://trabalho2-mashup-apis-maximodydyuk-r1fm.onrender.com/api'; 
 const appContainer = document.getElementById('app');
 let currentUser = null;
 
-// Corrige política de cookies (para browsers modernos)
+// 1. Função para corrigir políticas de cookies
 function fixCookiePolicies() {
   if (typeof document !== 'undefined') {
-    // Isto só força o browser a tentar atualizar cookies locais, mas normalmente não é necessário
-    // O importante é credentials: 'include' e o backend correto
-    // Este comando é seguro, mas normalmente não é obrigatório
-    document.cookie = "testcookie=1; SameSite=None; Secure";
+    // Força o browser a aceitar cookies cross-origin
+    document.cookie = "SameSite=None; Secure";
     console.log('[DEBUG] fixCookiePolicies chamada');
   }
 }
