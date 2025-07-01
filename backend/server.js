@@ -9,25 +9,27 @@ const path = require('path');
 
 const app = express();
 
-// CORS
+// Configuração do CORS
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://trab2maximodydyuk.vercel.app',
-  'https://trabalho2-mashup-apis-maximodydyuk-r1fm.onrender.com',
-  'https://trabalho2-mashup-apis-maximodydyuk-7wtj.onrender.com'
+  'https://trab2maximodydyuk.vercel.app'
 ];
 
-// CORS 
 app.use(cors({
-  origin: function(origin, callback) {
-    if (!origin) return callback(null, true); // para ferramentas tipo Postman
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
+  origin: 'http://localhost:3000',
+  origin: function (origin, callback) {
+    // Permitir solicitações sem 'origin'
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Origem não permitida por CORS'), false);
     }
-    callback(new Error('CORS não permitido'));
   },
-  credentials: true
-}));
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 
 // Middlewares - Aumentar o limite para JSON
 app.use(express.json({ limit: '10mb' }));
@@ -35,45 +37,20 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Configuração de sessão
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'uma_chave_qualquer_secreta',
+  secret: process.env.SESSION_SECRET || 'secret_key_aleatoria',
   resave: false,
   saveUninitialized: false,
-  store: MongoStore.create({
+  store: MongoStore.create({ 
     mongoUrl: process.env.MONGODB_URI,
     ttl: 24 * 60 * 60 // 1 dia
   }),
   cookie: {
     maxAge: 24 * 60 * 60 * 1000, // 1 dia
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production', // se estiver em produção, usa HTTPS
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' // cross-site funciona só com 'none' + secure
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
   }
 }));
-
-// Teste para ver se session funciona
-app.post('/login', (req, res) => {
-  // Exemplo: setar algo na sessão
-  req.session.user = { id: 'usuario123' };
-  res.send({ message: 'Login ok' });
-});
-
-app.get('/check', (req, res) => {
-  if (req.session.user) {
-    res.send({ logged: true, user: req.session.user });
-  } else {
-    res.status(401).send({ logged: false });
-  }
-});
-
-app.listen(3001, () => console.log('Backend rodando'));
-
-// Servir o frontend da pasta "frontend"
-app.use(express.static(path.join(__dirname, 'frontend')));
-
-// Qualquer rota que não for API, serve o index.html
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
-});
 
 // Passport
 require('./config/passport-config');
@@ -97,6 +74,9 @@ const authRoutes = require('./routes/authRoutes');
 const apiRoutes = require('./routes/apiRoutes');
 app.use('/api/auth', authRoutes);
 app.use('/api', apiRoutes);
+
+// Servir arquivos estáticos (se necessário)
+app.use(express.static(path.join(__dirname, 'public')));
 
 
 // Rota de status
