@@ -9,10 +9,11 @@ const path = require('path');
 
 const app = express();
 
-// Configuração do CORS
+// 1. Configuração do CORS corrigida
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://trabalho2-mashup-apis-maximodydyuk-r1fm.onrender.com'
+  'https://trabalho2-mashup-apis-maximodydyuk-r1fm.onrender.com',
+  'https://trab2maximodydyuk.vercel.app' // ADICIONEI SEU DOMÍNIO DO VERCEL
 ];
 
 app.use(cors({
@@ -23,6 +24,7 @@ app.use(cors({
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.error(`Origem bloqueada: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -31,13 +33,14 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-app.options('*', cors()); // Habilitar pré-voo para todas as rotas
+// 2. IMPORTANTE: Habilitar pré-vio CORS para todas as rotas
+app.options('*', cors());
 
 // Middlewares - Aumentar o limite para JSON
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Configuração de sessão
+// 3. Configuração de sessão corrigida
 app.use(session({
   secret: process.env.SESSION_SECRET || 'secret_key_aleatoria',
   resave: false,
@@ -49,8 +52,8 @@ app.use(session({
   cookie: {
     maxAge: 24 * 60 * 60 * 1000, // 1 dia
     httpOnly: true,
-    secure: true,
-    sameSite: 'none'
+    secure: process.env.NODE_ENV === 'production', // TRUE em produção
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
   }
 }));
 
@@ -59,15 +62,17 @@ require('./config/passport-config');
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Middleware para logs de requisição
+// 4. Middleware para logs de requisição (com headers CORS)
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} | ${req.method} ${req.originalUrl}`);
-  next();
-});
-
-// Middleware para definir headers de conteúdo
-app.use((req, res, next) => {
-  res.header('Content-Type', 'application/json; charset=utf-8');
+  console.log(`${new Date().toISOString()} | ${req.method} ${req.originalUrl} | Origin: ${req.headers.origin}`);
+  
+  // Configura headers CORS para respostas
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+  
   next();
 });
 
@@ -77,8 +82,8 @@ const apiRoutes = require('./routes/apiRoutes');
 app.use('/api/auth', authRoutes);
 app.use('/api', apiRoutes);
 
-// Servir arquivos estáticos (se necessário)
-app.use(express.static(path.join(__dirname, 'public')));
+// Servir arquivos estáticos
+app.use(express.static(path.join(__dirname, 'frontend')));
 
 // Rota de status
 app.get('/status', (req, res) => {
@@ -87,15 +92,20 @@ app.get('/status', (req, res) => {
     app: 'API Mashup',
     environment: process.env.NODE_ENV || 'development',
     timestamp: new Date().toISOString(),
-    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    cors: {
+      allowedOrigins: allowedOrigins,
+      currentOrigin: req.headers.origin
+    }
   });
 });
 
+// 5. Rota principal para servir frontend
 app.get('/', (req, res) => {
-  res.redirect('/status'); // Ou servir o frontend
+  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
 });
 
-// Middleware para tratamento de erros 404
+// 6. Middleware para tratamento de erros 404
 app.use((req, res) => {
   res.status(404).json({ 
     error: 'Rota não encontrada',
@@ -136,6 +146,7 @@ mongoose.connect(process.env.MONGODB_URI)
       console.log(` Ambiente: ${process.env.NODE_ENV || 'development'}`);
       console.log(` URL: http://localhost:${PORT}`);
       console.log(` Database: ${mongoose.connection.readyState === 1 ? 'Conectado' : 'Desconectado'}`);
+      console.log(` Origens permitidas: ${allowedOrigins.join(', ')}`);
     });
 
     // Gerenciamento de encerramento
