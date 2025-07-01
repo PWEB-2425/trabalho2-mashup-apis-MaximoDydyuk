@@ -3,44 +3,63 @@ const router = express.Router();
 const passport = require('passport');
 const User = require('../models/User');
 
-// Rota de registro
-router.post('/register', async (req, res, next) => {
+
+router.post('/register', async (req, res) => {
   const { username, password } = req.body;
+  console.log(`[REGISTER] Tentativa de registro para: ${username}`);
 
   try {
-    // Verificar se o usuário já existe
+
     const existingUser = await User.findOne({ username });
     if (existingUser) {
+      console.log(`[REGISTER] Utilizador já existe: ${username}`);
       return res.status(400).json({ error: 'Utilizador já existe.' });
     }
 
-    // Criar novo usuário
+
     const user = new User({ username, password });
     await user.save();
+    console.log(`[REGISTER] Novo utilizador criado: ${user._id}`);
 
-    // Fazer login automaticamente
+
     req.login(user, (err) => {
-      if (err) return next(err);
+      if (err) {
+        console.error('[REGISTER] Erro no login automático:', err);
+        return res.status(500).json({ error: 'Erro no login após registro' });
+      }
+      console.log(`[REGISTER] Sessão criada para: ${user._id} | SessionID: ${req.sessionID}`);
       return res.json({
         success: true,
         user: { id: user._id, username: user.username }
       });
     });
   } catch (error) {
+    console.error('[REGISTER] Erro crítico:', error);
     res.status(500).json({ error: 'Erro ao registrar utilizador.' });
   }
 });
 
-// Rota de login
 router.post('/login', (req, res, next) => {
+  const { username } = req.body;
+  console.log(`[LOGIN] Tentativa de login para: ${username}`);
+
   passport.authenticate('local', (err, user, info) => {
-    if (err) return next(err);
+    if (err) {
+      console.error('[LOGIN] Erro na autenticação:', err);
+      return next(err);
+    }
+    
     if (!user) {
-      return res.status(401).json({ error: info.message });
+      console.log(`[LOGIN] Falha: ${info.message || 'Credenciais inválidas'}`);
+      return res.status(401).json({ error: info.message || 'Credenciais inválidas' });
     }
 
     req.logIn(user, (err) => {
-      if (err) return next(err);
+      if (err) {
+        console.error('[LOGIN] Erro ao criar sessão:', err);
+        return next(err);
+      }
+      console.log(`[LOGIN] Sessão criada para: ${user._id} | SessionID: ${req.sessionID}`);
       return res.json({
         success: true,
         user: { id: user._id, username: user.username }
@@ -49,18 +68,31 @@ router.post('/login', (req, res, next) => {
   })(req, res, next);
 });
 
-// Rota de logout
+
 router.get('/logout', (req, res) => {
+  if (!req.user) {
+    console.log('[LOGOUT] Tentativa sem utilizador autenticado');
+    return res.status(400).json({ error: 'Nenhuma sessão ativa' });
+  }
+
+  console.log(`[LOGOUT] Terminando sessão de: ${req.user.username}`);
   req.logout((err) => {
     if (err) {
-      return res.status(500).json({ error: 'Erro ao fazer logout.' });
+      console.error('[LOGOUT] Erro:', err);
+      return res.status(500).json({ error: 'Erro ao fazer logout' });
     }
+    console.log('[LOGOUT] Sessão terminada com sucesso');
     res.json({ success: true });
   });
 });
 
-// Verificar sessão
+
 router.get('/check-session', (req, res) => {
+  console.log('[CHECK-SESSION] Verificando sessão...');
+  console.log(`SessionID: ${req.sessionID}`);
+  console.log(`req.isAuthenticated(): ${req.isAuthenticated()}`);
+  console.log(`req.user: ${req.user ? req.user.username : 'null'}`);
+
   if (req.isAuthenticated()) {
     res.json({
       authenticated: true,
