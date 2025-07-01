@@ -25,7 +25,7 @@ app.use(cors({
     if (!origin) {
       console.log('CORS: Pedido sem origem permitido');
       return callback(null, true);
-    }
+    } // ✅ CHAVE ADICIONADA
     
     if (allowedOrigins.includes(origin)) {
       console.log(`CORS: Origem permitida: ${origin}`);
@@ -33,7 +33,7 @@ app.use(cors({
     } else {
       console.log(`CORS BLOQUEADO: ${origin} não permitido`);
       return callback(new Error('Origem não permitida pelo CORS'), false);
-    }
+    } // ✅ CHAVE ADICIONADA
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
