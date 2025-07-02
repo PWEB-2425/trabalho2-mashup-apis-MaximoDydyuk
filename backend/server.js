@@ -121,18 +121,18 @@ app.use((err, req, res, next) => {
 // 13. Conexão MongoDB
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
-    console.log('✅ MongoDB conectado');
+    console.log(' MongoDB conectado');
     const PORT = process.env.PORT || 5000;
     const server = app.listen(PORT, () => {
-      console.log(`🚀 Servidor na porta ${PORT}`);
-      console.log('🍪 Cookies: secure=true, sameSite=none');
+      console.log(` Servidor na porta ${PORT}`);
+      console.log(' Cookies: secure=true, sameSite=none');
     });
 
     const shutdown = () => {
-      console.log('🛑 Encerrando servidor...');
+      console.log(' Encerrando servidor...');
       server.close(() => {
         mongoose.connection.close(() => {
-          console.log('🔌 Conexões encerradas');
+          console.log(' Conexões encerradas');
           process.exit(0);
         });
       });
@@ -142,6 +142,6 @@ mongoose.connect(process.env.MONGODB_URI)
     process.on('SIGTERM', shutdown);
   })
   .catch(err => {
-    console.error('❌ Erro MongoDB:', err.message);
+    console.error(' Erro MongoDB:', err.message);
     process.exit(1);
   });
