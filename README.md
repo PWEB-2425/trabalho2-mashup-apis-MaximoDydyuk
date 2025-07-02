@@ -43,7 +43,7 @@ Frontend moderno e responsivo
 
 Layout clean via HTML/CSS/JS.
 
-Localização do projeto: https://trabalho2-mashup-apis-maximodydyuk-r1fm.onrender.com
+Localização do projeto: https://trabalho2-mashup-apis-maximo-dydyuk-nine.vercel.app/
 
  Instalação e execução
 Pré‑requisitos
